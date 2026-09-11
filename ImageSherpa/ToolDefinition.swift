@@ -15,7 +15,7 @@ struct ToolDefinition: Codable, Identifiable {
     let recipes: [Recipe]
 }
 
-struct Recipe: Codable, Identifiable {
+struct Recipe: Codable, Identifiable, Hashable {
     let id: String
     let label: String
     let description: String
@@ -23,14 +23,14 @@ struct Recipe: Codable, Identifiable {
     let fields: [RecipeField]
 }
 
-struct RecipeField: Codable, Identifiable {
+struct RecipeField: Codable, Identifiable, Hashable {
     var id: String { name }
     let name: String
     let label: String
     let type: FieldType
     let `default`: String?
 
-    enum FieldType: String, Codable {
+    enum FieldType: String, Codable, Hashable {
         case text          // short values with no spaces expected: numbers, extensions, dates
         case quotedText = "quoted_text"   // free-text values that may contain spaces: names, keywords, cities
         case folder
