@@ -1,0 +1,100 @@
+{
+  "id": "osxphotos",
+  "displayName": "OSXPhotos",
+  "summary": "Query and export photos from Apple Photos.app, including metadata, albums, and faces.",
+  "installMethod": "brew",
+  "formula": "osxphotos",
+  "homepage": "https://github.com/RhetTbull/osxphotos",
+  "versionCommand": "osxphotos version",
+  "versionRegex": "osxphotos, version (\\S+)",
+  "recipes": [
+    {
+      "id": "export_by_album",
+      "label": "Export Photos by Album",
+      "description": "Export all photos in a specific album to a folder.",
+      "template": "osxphotos export {destination} --album {album} --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "album", "label": "Album Name", "type": "quoted_text" }
+      ]
+    },
+    {
+      "id": "export_by_keyword",
+      "label": "Export Photos by Keyword",
+      "description": "Export all photos tagged with a specific keyword.",
+      "template": "osxphotos export {destination} --keyword {keyword} --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "keyword", "label": "Keyword", "type": "quoted_text" }
+      ]
+    },
+    {
+      "id": "export_by_date_range",
+      "label": "Export Photos by Date Range",
+      "description": "Export photos taken between two dates.",
+      "template": "osxphotos export {destination} --from-date {startDate} --to-date {endDate} --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "startDate", "label": "Start Date (YYYY-MM-DD)", "type": "text" },
+        { "name": "endDate", "label": "End Date (YYYY-MM-DD)", "type": "text" }
+      ]
+    },
+    {
+      "id": "find_duplicates",
+      "label": "Find Duplicate Photos",
+      "description": "List photos that appear to be duplicates based on content hash.",
+      "template": "osxphotos duplicates",
+      "fields": []
+    },
+    {
+      "id": "export_person",
+      "label": "Export Photos of a Person",
+      "description": "Export all photos containing a specific recognized face.",
+      "template": "osxphotos export {destination} --person {personName} --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "personName", "label": "Person Name", "type": "quoted_text" }
+      ]
+    },
+    {
+      "id": "list_albums",
+      "label": "List All Albums",
+      "description": "Show every album in the Photos library.",
+      "template": "osxphotos albums",
+      "fields": []
+    },
+    {
+      "id": "best_photos_of_place",
+      "label": "Best Photos of a Place",
+      "description": "Export the top-scored photos taken in a specific city or location, ranked by Apple's on-device aesthetic score. \"Top 20%\" means the best 20% within that place, not the whole library.",
+      "template": "env OSXPHOTOS_TOP_PERCENT={percent} osxphotos export {destination} --place {city} --query-function {scriptsDir}/photo_scoring.py::top_percent --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "city", "label": "City or Place Name", "type": "quoted_text" },
+        { "name": "percent", "label": "Top Percent to Keep (1-100)", "type": "text", "default": "20" }
+      ]
+    },
+    {
+      "id": "best_photos_of_person",
+      "label": "Best Photos of a Person",
+      "description": "Export the top-scored photos of a specific recognized face, ranked by Apple's on-device aesthetic score.",
+      "template": "env OSXPHOTOS_TOP_PERCENT={percent} osxphotos export {destination} --person {personName} --query-function {scriptsDir}/photo_scoring.py::top_percent --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "personName", "label": "Person Name", "type": "quoted_text" },
+        { "name": "percent", "label": "Top Percent to Keep (1-100)", "type": "text", "default": "20" }
+      ]
+    },
+    {
+      "id": "best_photos_of_year",
+      "label": "Best Photos of a Year",
+      "description": "Export the top-scored photos from a specific year, useful for building a \"best of\" recap without manually sorting through everything.",
+      "template": "env OSXPHOTOS_TOP_PERCENT={percent} osxphotos export {destination} --year {year} --query-function {scriptsDir}/photo_scoring.py::top_percent --update",
+      "fields": [
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "year", "label": "Year (e.g. 2025)", "type": "text" },
+        { "name": "percent", "label": "Top Percent to Keep (1-100)", "type": "text", "default": "10" }
+      ]
+    }
+  ]
+}
