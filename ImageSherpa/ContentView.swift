@@ -8,11 +8,21 @@
 import SwiftUI
 
 struct ContentView: View {
+    private let tools = ToolRegistryLoader.loadAll()
+
     var body: some View {
         NavigationSplitView {
             List {
                 NavigationLink("Dependencies") {
                     DependenciesView()
+                }
+
+                Section("Tools") {
+                    ForEach(tools) { tool in
+                        NavigationLink(tool.displayName) {
+                            ToolDetailView(tool: tool)
+                        }
+                    }
                 }
             }
             .navigationTitle("ImageSherpa")
