@@ -20,9 +20,11 @@ reopening this explicitly with Brian.
 copy; bundle identifier and repo name use the no-space form)
 **Platform:** macOS, Swift / SwiftUI
 **Owner:** Brian Cosgrove — So Wired Productions
-**Repo:** Not yet created — see Key Open Questions
-**Status:** Scaffolded outside Xcode (Registry JSON files, core Swift sources for the
-Homebrew manager, recipe runner, and registry loader). No Xcode project created yet.
+**Repo:** [LkwdBrian/ImageSherpa](https://github.com/LkwdBrian/ImageSherpa) (public)
+**Status:** Xcode project scaffolded (Xcode 16 file-system-synchronized groups, no manual
+pbxproj file lists — see App Components). `ToolDefinition.swift`, `RecipeRunner.swift`,
+`HomebrewManager.swift`, and a working Dependencies tab (`DependenciesView.swift`) exist.
+osxphotos is the only registered tool so far. No recipe form / run log UI yet.
 
 ---
 
@@ -32,19 +34,30 @@ Homebrew manager, recipe runner, and registry loader). No Xcode project created 
   unlike Conduit, there's no persistent server to coordinate with, so this is a simpler
   single-target architecture. The app shells out directly to `Process` for Homebrew
   operations and recipe execution.
-- **Registry/** — one JSON file per supported CLI tool (`osxphotos.json`, `imagemagick.json`,
-  and future image-domain tools). Defines the tool's install method, formula name,
-  version-check command, and its list of recipes (each recipe: a command template with
-  `{field}` placeholders, plus the form fields needed to fill it in). Ships as a folder
-  reference in the app bundle.
-- **Scripts/** — bundled Python helper scripts for logic a CLI flag can't express (currently:
-  `photo_scoring.py`, used by osxphotos recipes that filter by Apple's on-device aesthetic
-  score). Invoked via tools' own script hooks (e.g. osxphotos's `--query-function`), with
-  user-configurable parameters passed through environment variables rather than script
-  arguments. Ships as a folder reference, same as Registry/.
-- **Sources/** — `ToolDefinition.swift` (registry models + loader), `HomebrewManager.swift`
-  (install/uninstall/version-check for brew formulae), `RecipeRunner.swift` (builds and
-  executes the final shell command from a recipe + field values).
+- **All source lives flat under `ImageSherpa/`**, not in separate `Registry/Scripts/Sources`
+  top-level folders. The Xcode project uses Xcode 16's file-system-synchronized groups (no
+  manual `project.pbxproj` file lists — drop a new `.swift`/`.json`/`.py` file into
+  `ImageSherpa/` and it's picked up automatically). This has one real consequence: **nested
+  subfolders are flattened when copied into the app bundle's `Contents/Resources`.**
+  `ImageSherpa/Registry/` and `ImageSherpa/Scripts/` exist for developer organization only —
+  at runtime every `.json`/`.py` file lands directly in `Bundle.main.resourceURL`, not under
+  a "Registry" or "Scripts" subdirectory. `ToolRegistryLoader` and `RecipeRunner` read from
+  `Bundle.main.resourceURL` directly for this reason; don't reintroduce a
+  `Bundle.main.url(forResource: "Registry", ...)`-style lookup, it will silently return zero
+  tools.
+  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json` exists;
+    `imagemagick.json` does not yet). Defines the tool's install method, formula name,
+    version-check command, and its list of recipes (each recipe: a command template with
+    `{field}` placeholders, plus the form fields needed to fill it in).
+  - `ImageSherpa/Scripts/*.py` — bundled Python helper scripts for logic a CLI flag can't
+    express (currently: `photo_scoring.py`, used by osxphotos recipes that filter by Apple's
+    on-device aesthetic score). Invoked via tools' own script hooks (e.g. osxphotos's
+    `--query-function`), with user-configurable parameters passed through environment
+    variables rather than script arguments.
+  - `ToolDefinition.swift` (registry models + loader), `HomebrewManager.swift`
+    (install/uninstall/version-check for brew formulae), `RecipeRunner.swift` (builds and
+    executes the final shell command from a recipe + field values), `DependenciesView.swift`
+    (the Dependencies tab UI, the only real screen so far).
 
 ---
 
@@ -102,18 +115,15 @@ table, keep it current.
 ## Build & Test Commands
 ```bash
 # Validate registry JSON files are well-formed (do this after any Registry/ edit)
-python3 -m json.tool Registry/osxphotos.json > /dev/null
-python3 -m json.tool Registry/imagemagick.json > /dev/null
+python3 -m json.tool ImageSherpa/Registry/osxphotos.json > /dev/null
 
 # Validate a bundled Python script's syntax
-python3 -m py_compile Scripts/photo_scoring.py
+python3 -m py_compile ImageSherpa/Scripts/photo_scoring.py
 
-# Full app — update once the Xcode project and scheme exist
+# Full app
 xcodebuild -scheme "ImageSherpa" -destination 'platform=macOS' build
 xcodebuild -scheme "ImageSherpa" -destination 'platform=macOS' test
 ```
-Update the `xcodebuild` lines with the real scheme name as soon as the Xcode project is
-created, don't leave them as placeholders once that's done.
 
 ---
 
@@ -140,7 +150,7 @@ exists for the task, create one first per the format below.
 
 ## GitHub Issues — Project Task Tracker
 
-GitHub Issues will be the single task tracker once the repo exists. No mental todo lists.
+GitHub Issues is the single task tracker. No mental todo lists.
 
 **Session start ritual:** Always check open Issues before writing any code or making
 recommendations. Use the GitHub MCP connector to fetch current issues.
@@ -176,9 +186,10 @@ Relevant context, API references, gotchas.
 - `bug` — something broken
 - `v1` — must ship in v1
 
-**Milestones (proposed, adjust once repo exists):**
+**Milestones:**
 - **v0.1 — Foundation:** Homebrew manager working end to end (install/uninstall/version
-  check), Xcode project scaffolded, App Sandbox confirmed off, signing configured
+  check), Xcode project scaffolded, App Sandbox confirmed off, signing configured —
+  **done as of `feature/dependencies-tab`**, pending merge to `main`
 - **v0.2 — Recipe UI:** Tool detail view, recipe form generation, command preview, run log
 - **v1.0 — Public Release:** Notarized DMG, Sparkle-enabled, at least osxphotos + imagemagick
   fully working
@@ -246,7 +257,7 @@ tester.
 ## Working Agreements
 
 - Always start a session by reviewing open GitHub Issues via the GitHub MCP connector
-  (Desktop) or `gh issue list` (Code), once the repo exists
+  (Desktop) or `gh issue list` (Code)
 - Remind Brian to review and merge feature branches at natural stopping points
 - Suggest starting a new chat when the conversation is getting long or switching focus areas
 - Brian is experienced with Swift/SwiftUI — skip beginner explanations
@@ -262,9 +273,6 @@ tester.
 
 Do not make decisions on these without Brian.
 
-- **GitHub repo not yet created.** Suggested repo name: `ImageSherpa` (no space, matching the
-  bundle identifier convention). Needs: private vs. public, initial issue set seeded from
-  this file's "Supported Tools & Recipes" and "Framework Reality Checks" sections.
 - **Pricing/distribution model** — free (lead-gen for So Wired Productions) vs. small paid
   utility (Gumroad or direct sale, since App Store install/uninstall functionality is
   incompatible with sandboxing regardless).

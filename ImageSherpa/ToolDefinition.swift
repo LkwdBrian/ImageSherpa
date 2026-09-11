@@ -38,14 +38,20 @@ struct RecipeField: Codable, Identifiable {
     }
 }
 
-/// Loads every .json file in the app's bundled Registry directory.
+/// Loads every registry .json file bundled with the app.
+///
+/// Source files live under `Registry/` for developer organization, but Xcode's
+/// file-system-synchronized groups flatten subfolders when copying resources, so at
+/// runtime every .json file lands directly in `Bundle.main.resourceURL`, not in a
+/// "Registry" subdirectory. Decoding failures (e.g. a non-registry .json slipping into
+/// the bundle) are treated as "not a registry file" rather than a fatal error.
 enum ToolRegistryLoader {
     static func loadAll() -> [ToolDefinition] {
-        guard let registryURL = Bundle.main.url(forResource: "Registry", withExtension: nil) else {
+        guard let resourceURL = Bundle.main.resourceURL else {
             return []
         }
         guard let files = try? FileManager.default.contentsOfDirectory(
-            at: registryURL, includingPropertiesForKeys: nil
+            at: resourceURL, includingPropertiesForKeys: nil
         ).filter({ $0.pathExtension == "json" }) else {
             return []
         }
