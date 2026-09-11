@@ -53,9 +53,12 @@ final class RecipeRunner {
         return command
     }
 
-    /// Scripts/ ships as a folder reference in the app bundle, same pattern as Registry/.
+    /// Scripts/ is a source-only grouping folder; Xcode's file-system-synchronized
+    /// groups flatten it on copy, so bundled scripts land directly in the app's
+    /// top-level Resources directory at runtime (see ToolRegistryLoader for the
+    /// same caveat on Registry/).
     private static func bundledScriptsDirectory() -> String? {
-        Bundle.main.url(forResource: "Scripts", withExtension: nil)?.path
+        Bundle.main.resourceURL?.path
     }
 
     /// Runs the built command, streaming stdout/stderr lines to the handler as they arrive.
