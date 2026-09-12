@@ -46,9 +46,9 @@ picker (`FolderPicker.swift`) all exist. osxphotos and imagemagick are both regi
   `Bundle.main.resourceURL` directly for this reason; don't reintroduce a
   `Bundle.main.url(forResource: "Registry", ...)`-style lookup, it will silently return zero
   tools.
-  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json` and
-    `imagemagick.json` both exist). Defines the tool's install method, formula name,
-    version-check command, and its list of recipes (each recipe: a command template with
+  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json`,
+    `imagemagick.json`, and `ffmpeg.json` exist). Defines the tool's install method, formula
+    name, version-check command, and its list of recipes (each recipe: a command template with
     `{field}` placeholders, plus the form fields needed to fill it in).
   - `ImageSherpa/Scripts/*.py` — bundled Python helper scripts for logic a CLI flag can't
     express (currently: `photo_scoring.py`, used by osxphotos recipes that filter by Apple's
@@ -104,10 +104,11 @@ Decisions are locked. Do not suggest alternatives unless Brian explicitly reopen
 |---|---|---|
 | osxphotos | brew | Export by album, by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
 | imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet |
+| ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video |
 
-**Roadmap candidates (image/photo domain only, per the scope decision above):** ffmpeg
-(video/image sequence conversion), exiftool (deeper metadata read/write than osxphotos
-exposes natively). Neither has a Registry file yet.
+**Roadmap candidates (image/photo domain only, per the scope decision above):** exiftool
+(deeper metadata read/write than osxphotos/ImageMagick expose natively). Not yet scoped into
+a Registry file.
 
 Recipes should default to the 80% use case. Resist adding a field for every possible flag a
 CLI tool supports, that defeats the point of the app. New tool additions go through this
@@ -120,6 +121,7 @@ table, keep it current.
 # Validate registry JSON files are well-formed (do this after any Registry/ edit)
 python3 -m json.tool ImageSherpa/Registry/osxphotos.json > /dev/null
 python3 -m json.tool ImageSherpa/Registry/imagemagick.json > /dev/null
+python3 -m json.tool ImageSherpa/Registry/ffmpeg.json > /dev/null
 
 # Validate a bundled Python script's syntax
 python3 -m py_compile ImageSherpa/Scripts/photo_scoring.py
@@ -264,6 +266,13 @@ tester.
   pinning `-font /System/Library/Fonts/Helvetica.ttc` (ships on every Mac), which sidesteps
   the font lookup entirely. If you add another recipe that uses `montage`, `-annotate`,
   `-draw`, or anything else that renders text, apply the same explicit `-font` fix.
+- **ffmpeg.json recipes are verified against a real installed CLI** (ffmpeg 9.0.1 aarch64,
+  2026-09-11). All 5 templates run clean and produce correct output.
+- **Every ffmpeg recipe template must include `-y`.** RecipeRunner's `Process` runs
+  non-interactively with no stdin. Without `-y`, ffmpeg pauses to ask "overwrite? [y/N]" on
+  any re-run where the output file already exists, and the run silently hangs forever (no
+  error, no exit code) since nothing can answer the prompt. Any new ffmpeg recipe needs `-y`
+  for this reason — it's not optional the way it might look in a docs example.
 
 ---
 
