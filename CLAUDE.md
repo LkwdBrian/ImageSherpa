@@ -25,7 +25,8 @@ copy; bundle identifier and repo name use the no-space form)
 pbxproj file lists — see App Components). `ToolDefinition.swift`, `RecipeRunner.swift`,
 `HomebrewManager.swift`, a working Dependencies tab (`DependenciesView.swift`), tool detail
 (`ToolDetailView.swift`), recipe form + run log (`RecipeFormView.swift`), and a folder/file
-picker (`FolderPicker.swift`) all exist. osxphotos and imagemagick are both registered tools.
+picker (`FolderPicker.swift`) all exist. osxphotos, imagemagick, ffmpeg, and exiftool are all
+registered tools.
 
 ---
 
@@ -46,9 +47,10 @@ picker (`FolderPicker.swift`) all exist. osxphotos and imagemagick are both regi
   `Bundle.main.resourceURL` directly for this reason; don't reintroduce a
   `Bundle.main.url(forResource: "Registry", ...)`-style lookup, it will silently return zero
   tools.
-  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json` and
-    `imagemagick.json` both exist). Defines the tool's install method, formula name,
-    version-check command, and its list of recipes (each recipe: a command template with
+  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json`,
+    `imagemagick.json`, `ffmpeg.json`, and `exiftool.json` all exist). Defines the tool's
+    install method, formula name, version-check command, and its list of recipes (each
+    recipe: a command template with
     `{field}` placeholders, plus the form fields needed to fill it in).
   - `ImageSherpa/Scripts/*.py` — bundled Python helper scripts for logic a CLI flag can't
     express (currently: `photo_scoring.py`, used by osxphotos recipes that filter by Apple's
@@ -104,10 +106,10 @@ Decisions are locked. Do not suggest alternatives unless Brian explicitly reopen
 |---|---|---|
 | osxphotos | brew | Export by album, by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
 | imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet |
+| ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video |
+| exiftool | brew | Remove GPS location only, rename by capture date, add copyright/author, geotag by decimal coordinates, export metadata to CSV |
 
-**Roadmap candidates (image/photo domain only, per the scope decision above):** ffmpeg
-(video/image sequence conversion), exiftool (deeper metadata read/write than osxphotos
-exposes natively). Neither has a Registry file yet.
+All four tools in the confirmed image/photo scope (see App Overview) are now registered.
 
 Recipes should default to the 80% use case. Resist adding a field for every possible flag a
 CLI tool supports, that defeats the point of the app. New tool additions go through this
@@ -120,6 +122,8 @@ table, keep it current.
 # Validate registry JSON files are well-formed (do this after any Registry/ edit)
 python3 -m json.tool ImageSherpa/Registry/osxphotos.json > /dev/null
 python3 -m json.tool ImageSherpa/Registry/imagemagick.json > /dev/null
+python3 -m json.tool ImageSherpa/Registry/ffmpeg.json > /dev/null
+python3 -m json.tool ImageSherpa/Registry/exiftool.json > /dev/null
 
 # Validate a bundled Python script's syntax
 python3 -m py_compile ImageSherpa/Scripts/photo_scoring.py
@@ -197,8 +201,9 @@ Relevant context, API references, gotchas.
 - **v0.2 — Recipe UI:** Tool detail view, recipe form generation, command preview, run log —
   **done**, merged to `main` via `feature/recipe-form-ui`.
 - **v1.0 — Public Release:** Notarized DMG, Sparkle-enabled, at least osxphotos + imagemagick
-  fully working. Registry files for both tools exist and their recipes are verified against
-  real installed CLIs (see Framework Reality Checks).
+  fully working. Registry files for all four tools (osxphotos, imagemagick, ffmpeg, exiftool)
+  exist and their recipes are verified against real installed CLIs (see Framework Reality
+  Checks). Remaining v1.0 gap is packaging (notarized DMG, Sparkle), not tool coverage.
 
 ---
 
@@ -264,6 +269,27 @@ tester.
   pinning `-font /System/Library/Fonts/Helvetica.ttc` (ships on every Mac), which sidesteps
   the font lookup entirely. If you add another recipe that uses `montage`, `-annotate`,
   `-draw`, or anything else that renders text, apply the same explicit `-font` fix.
+- **ffmpeg.json recipes are verified against a real installed CLI** (ffmpeg 9.0.1 aarch64,
+  2026-09-11). All 5 templates run clean and produce correct output.
+- **Every ffmpeg recipe template must include `-y`.** RecipeRunner's `Process` runs
+  non-interactively with no stdin. Without `-y`, ffmpeg pauses to ask "overwrite? [y/N]" on
+  any re-run where the output file already exists, and the run silently hangs forever (no
+  error, no exit code) since nothing can answer the prompt. Any new ffmpeg recipe needs `-y`
+  for this reason — it's not optional the way it might look in a docs example.
+- **exiftool.json recipes are verified against a real installed CLI** (exiftool 13.55,
+  2026-09-11). All 5 templates run clean and produce correct output.
+- **exiftool's `-d` date-format tokens for filename rename must use double-percent for
+  exiftool-specific tokens** (`%%e` for the file extension, `%%-c` for a collision counter),
+  not single-percent. A single `%e`/`%-c` gets intercepted by the underlying strftime parser
+  instead (producing garbage like a locale datetime string or day-of-month), not passed
+  through to exiftool's own escapes. The `batch_rename_by_date` recipe's `%%-c` counter also
+  isn't cosmetic: without it, two photos sharing the same capture timestamp to the second
+  (burst shots, batch imports) collide on the same target filename and the whole run exits 1
+  partway through, having renamed some files but not others.
+- **exiftool's `-GPSLatitudeRef`/`-GPSLongitudeRef` can take the same signed decimal value as
+  `-GPSLatitude`/`-GPSLongitude`** rather than needing separate N/S/E/W tag values — exiftool
+  derives the hemisphere from the sign. This is what lets the `geotag` recipe use only 2
+  fields (latitude, longitude) instead of 4.
 
 ---
 
@@ -289,6 +315,6 @@ Do not make decisions on these without Brian.
 - **Pricing/distribution model** — free (lead-gen for So Wired Productions) vs. small paid
   utility (Gumroad or direct sale, since App Store install/uninstall functionality is
   incompatible with sandboxing regardless).
-- **Next tool to register after osxphotos/imagemagick** — ffmpeg vs. exiftool as the third
-  Registry entry. Both fit the confirmed image/photo scope; neither is scoped into a Registry
-  file yet.
+- ~~**Next tool to register after osxphotos/imagemagick**~~ — **Decided 2026-09-11: both.**
+  ffmpeg and exiftool are now both registered (see Supported Tools & Recipes). No fifth tool
+  is currently being considered.
