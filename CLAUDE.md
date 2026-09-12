@@ -23,8 +23,9 @@ copy; bundle identifier and repo name use the no-space form)
 **Repo:** [LkwdBrian/ImageSherpa](https://github.com/LkwdBrian/ImageSherpa) (public)
 **Status:** Xcode project scaffolded (Xcode 16 file-system-synchronized groups, no manual
 pbxproj file lists — see App Components). `ToolDefinition.swift`, `RecipeRunner.swift`,
-`HomebrewManager.swift`, and a working Dependencies tab (`DependenciesView.swift`) exist.
-osxphotos is the only registered tool so far. No recipe form / run log UI yet.
+`HomebrewManager.swift`, a working Dependencies tab (`DependenciesView.swift`), tool detail
+(`ToolDetailView.swift`), recipe form + run log (`RecipeFormView.swift`), and a folder/file
+picker (`FolderPicker.swift`) all exist. osxphotos and imagemagick are both registered tools.
 
 ---
 
@@ -45,8 +46,8 @@ osxphotos is the only registered tool so far. No recipe form / run log UI yet.
   `Bundle.main.resourceURL` directly for this reason; don't reintroduce a
   `Bundle.main.url(forResource: "Registry", ...)`-style lookup, it will silently return zero
   tools.
-  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json` exists;
-    `imagemagick.json` does not yet). Defines the tool's install method, formula name,
+  - `ImageSherpa/Registry/*.json` — one file per supported CLI tool (`osxphotos.json` and
+    `imagemagick.json` both exist). Defines the tool's install method, formula name,
     version-check command, and its list of recipes (each recipe: a command template with
     `{field}` placeholders, plus the form fields needed to fill it in).
   - `ImageSherpa/Scripts/*.py` — bundled Python helper scripts for logic a CLI flag can't
@@ -57,7 +58,9 @@ osxphotos is the only registered tool so far. No recipe form / run log UI yet.
   - `ToolDefinition.swift` (registry models + loader), `HomebrewManager.swift`
     (install/uninstall/version-check for brew formulae), `RecipeRunner.swift` (builds and
     executes the final shell command from a recipe + field values), `DependenciesView.swift`
-    (the Dependencies tab UI, the only real screen so far).
+    (Dependencies tab UI), `ToolDetailView.swift` (per-tool detail screen), `RecipeFormView.swift`
+    (dynamic recipe form generation, command preview, and run log), `FolderPicker.swift`
+    (`NSOpenPanel` wrapper for `folder`/`file` recipe fields).
 
 ---
 
@@ -116,6 +119,7 @@ table, keep it current.
 ```bash
 # Validate registry JSON files are well-formed (do this after any Registry/ edit)
 python3 -m json.tool ImageSherpa/Registry/osxphotos.json > /dev/null
+python3 -m json.tool ImageSherpa/Registry/imagemagick.json > /dev/null
 
 # Validate a bundled Python script's syntax
 python3 -m py_compile ImageSherpa/Scripts/photo_scoring.py
@@ -188,11 +192,13 @@ Relevant context, API references, gotchas.
 
 **Milestones:**
 - **v0.1 — Foundation:** Homebrew manager working end to end (install/uninstall/version
-  check), Xcode project scaffolded, App Sandbox confirmed off, signing configured —
-  **done as of `feature/dependencies-tab`**, pending merge to `main`
-- **v0.2 — Recipe UI:** Tool detail view, recipe form generation, command preview, run log
+  check), Xcode project scaffolded, App Sandbox confirmed off, signing configured — **done**,
+  merged to `main`.
+- **v0.2 — Recipe UI:** Tool detail view, recipe form generation, command preview, run log —
+  **done**, merged to `main` via `feature/recipe-form-ui`.
 - **v1.0 — Public Release:** Notarized DMG, Sparkle-enabled, at least osxphotos + imagemagick
-  fully working
+  fully working. Registry files for both tools exist; imagemagick recipes still need
+  verification against real ImageMagick CLI syntax (see Framework Reality Checks).
 
 ---
 
@@ -244,13 +250,14 @@ tester.
 - **No support yet for non-Homebrew install methods** (pip-only tools, for instance).
   `installMethod` is a string for exactly this reason — add a parallel manager (e.g.
   `PipManager`) rather than overloading `HomebrewManager` when this is needed.
-- **No `NSOpenPanel` wrapper exists yet** for folder/file recipe fields. Intentionally left
-  out of the initial scaffold since it's boilerplate likely already available from other
-  projects — reuse rather than rewrite when this is needed.
 - **osxphotos CLI flags referenced in recipes** (`--place`, `--person`, `--year`,
   `--query-function`) were sourced from documentation and may drift across osxphotos
   versions. Verify against `osxphotos help export` on the actual installed version before
   trusting a recipe template is correct.
+- **imagemagick.json recipes are unverified.** The 5 recipes (batch resize, convert format,
+  watermark, strip metadata, contact sheet) were written from documentation, not tested
+  against an installed `magick`/`convert` binary yet. Verify command templates before
+  trusting them in the field.
 
 ---
 
