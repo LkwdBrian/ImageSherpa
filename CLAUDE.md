@@ -197,8 +197,8 @@ Relevant context, API references, gotchas.
 - **v0.2 — Recipe UI:** Tool detail view, recipe form generation, command preview, run log —
   **done**, merged to `main` via `feature/recipe-form-ui`.
 - **v1.0 — Public Release:** Notarized DMG, Sparkle-enabled, at least osxphotos + imagemagick
-  fully working. Registry files for both tools exist; imagemagick recipes still need
-  verification against real ImageMagick CLI syntax (see Framework Reality Checks).
+  fully working. Registry files for both tools exist and their recipes are verified against
+  real installed CLIs (see Framework Reality Checks).
 
 ---
 
@@ -254,10 +254,16 @@ tester.
   `--query-function`) were sourced from documentation and may drift across osxphotos
   versions. Verify against `osxphotos help export` on the actual installed version before
   trusting a recipe template is correct.
-- **imagemagick.json recipes are unverified.** The 5 recipes (batch resize, convert format,
-  watermark, strip metadata, contact sheet) were written from documentation, not tested
-  against an installed `magick`/`convert` binary yet. Verify command templates before
-  trusting them in the field.
+- **imagemagick.json recipes are verified against a real installed CLI** (ImageMagick 7.1.2
+  aarch64, 2026-09-11). All 5 templates run clean and produce correct output.
+- **`magick montage` (contact_sheet recipe) needs an explicit `-font` path.** A stock
+  `brew install imagemagick` has no fontconfig registration (`magick -list font` returns
+  empty), so montage's default per-thumbnail filename label throws `unable to read font` and
+  exits 1 — even though it still writes a usable contact sheet. `-label ''`/`+label` do NOT
+  avoid this; montage still tries to measure text metrics for an empty label. The fix is
+  pinning `-font /System/Library/Fonts/Helvetica.ttc` (ships on every Mac), which sidesteps
+  the font lookup entirely. If you add another recipe that uses `montage`, `-annotate`,
+  `-draw`, or anything else that renders text, apply the same explicit `-font` fix.
 
 ---
 
