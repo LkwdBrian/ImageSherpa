@@ -1,0 +1,74 @@
+{
+  "id": "ffmpeg",
+  "displayName": "ffmpeg",
+  "summary": "Video conversion, frame extraction, GIFs, and timelapses built from image sequences.",
+  "installMethod": "brew",
+  "formula": "ffmpeg",
+  "homepage": "https://ffmpeg.org",
+  "versionCommand": "ffmpeg -version",
+  "versionRegex": "ffmpeg version (\\S+)",
+  "recipes": [
+    {
+      "id": "convert_format",
+      "label": "Convert Video Format",
+      "description": "Convert a video to a different container/format (e.g. MOV to MP4).",
+      "template": "ffmpeg -y -i {inputFile} {destination}/{outputName}.{format}",
+      "fields": [
+        { "name": "inputFile", "label": "Video File", "type": "file" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "outputName", "label": "Output File Name (no extension)", "type": "quoted_text", "default": "converted" },
+        { "name": "format", "label": "Target Format (e.g. mp4, mov, webm)", "type": "text", "default": "mp4" }
+      ]
+    },
+    {
+      "id": "extract_frames",
+      "label": "Extract Frames from Video",
+      "description": "Save individual frames from a video as still images at a given rate.",
+      "template": "ffmpeg -y -i {inputFile} -vf fps={fps} {destination}/frame_%04d.{format}",
+      "fields": [
+        { "name": "inputFile", "label": "Video File", "type": "file" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "fps", "label": "Frames per Second to Extract", "type": "text", "default": "1" },
+        { "name": "format", "label": "Image Format (e.g. jpg, png)", "type": "text", "default": "jpg" }
+      ]
+    },
+    {
+      "id": "video_to_gif",
+      "label": "Video to GIF",
+      "description": "Convert a video clip into an animated GIF.",
+      "template": "ffmpeg -y -i {inputFile} -vf fps={fps},scale={width}:-1:flags=lanczos {destination}/{outputName}.gif",
+      "fields": [
+        { "name": "inputFile", "label": "Video File", "type": "file" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "outputName", "label": "Output File Name (no extension)", "type": "quoted_text", "default": "animation" },
+        { "name": "fps", "label": "GIF Frame Rate", "type": "text", "default": "10" },
+        { "name": "width", "label": "GIF Width in Pixels", "type": "text", "default": "480" }
+      ]
+    },
+    {
+      "id": "images_to_video",
+      "label": "Build Video from Image Sequence",
+      "description": "Combine a numbered sequence of images in a folder into a video (timelapses, slideshows).",
+      "template": "ffmpeg -y -framerate {framerate} -i {sourceFolder}/{pattern} -pix_fmt yuv420p {destination}/{outputName}.mp4",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "pattern", "label": "File Name Pattern (e.g. img%04d.jpg)", "type": "text", "default": "img%04d.jpg" },
+        { "name": "framerate", "label": "Frames per Second", "type": "text", "default": "24" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "outputName", "label": "Output File Name (no extension)", "type": "quoted_text", "default": "timelapse" }
+      ]
+    },
+    {
+      "id": "compress_video",
+      "label": "Compress Video",
+      "description": "Re-encode a video at a lower quality/bitrate to shrink its file size, keeping resolution and format.",
+      "template": "ffmpeg -y -i {inputFile} -vcodec libx264 -crf {crf} {destination}/{outputName}.mp4",
+      "fields": [
+        { "name": "inputFile", "label": "Video File", "type": "file" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "outputName", "label": "Output File Name (no extension)", "type": "quoted_text", "default": "compressed" },
+        { "name": "crf", "label": "Quality (18=near-lossless/large, 28=smaller/lower quality)", "type": "text", "default": "28" }
+      ]
+    }
+  ]
+}
