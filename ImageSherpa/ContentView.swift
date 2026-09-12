@@ -12,20 +12,22 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List {
-                NavigationLink("Dependencies") {
-                    DependenciesView()
-                }
+            NavigationStack {
+                List {
+                    NavigationLink("Dependencies") {
+                        DependenciesView()
+                    }
 
-                Section("Tools") {
-                    ForEach(tools) { tool in
-                        NavigationLink(tool.displayName) {
-                            ToolDetailView(tool: tool)
+                    Section("Tools") {
+                        ForEach(tools) { tool in
+                            NavigationLink(tool.displayName) {
+                                ToolDetailView(tool: tool)
+                            }
                         }
                     }
                 }
+                .navigationTitle("ImageSherpa")
             }
-            .navigationTitle("ImageSherpa")
         } detail: {
             DependenciesView()
         }
