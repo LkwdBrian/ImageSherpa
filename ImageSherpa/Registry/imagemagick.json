@@ -1,0 +1,68 @@
+{
+  "id": "imagemagick",
+  "displayName": "ImageMagick",
+  "summary": "Batch image resizing, format conversion, watermarking, and metadata tools.",
+  "installMethod": "brew",
+  "formula": "imagemagick",
+  "homepage": "https://imagemagick.org",
+  "versionCommand": "magick -version",
+  "versionRegex": "ImageMagick (\\S+)",
+  "recipes": [
+    {
+      "id": "batch_resize",
+      "label": "Batch Resize",
+      "description": "Resize every image in a folder and save the results to a new folder, leaving the originals untouched.",
+      "template": "for f in {sourceFolder}/*; do magick \"$f\" -resize {size} {destination}/\"$(basename \"$f\")\"; done",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "size", "label": "Resize To (e.g. 50% or 1920x1080)", "type": "text", "default": "50%" }
+      ]
+    },
+    {
+      "id": "convert_format",
+      "label": "Convert Format",
+      "description": "Convert every image in a folder to a different file format.",
+      "template": "for f in {sourceFolder}/*; do magick \"$f\" {destination}/\"$(basename \"${f%.*}\").{format}\"; done",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "format", "label": "Target Format (e.g. png, jpg, webp)", "type": "text", "default": "png" }
+      ]
+    },
+    {
+      "id": "add_watermark",
+      "label": "Add Watermark",
+      "description": "Overlay a watermark image onto every image in a folder.",
+      "template": "for f in {sourceFolder}/*; do magick \"$f\" {watermarkImage} -gravity {gravity} -composite {destination}/\"$(basename \"$f\")\"; done",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" },
+        { "name": "watermarkImage", "label": "Watermark Image", "type": "file" },
+        { "name": "gravity", "label": "Position (e.g. southeast, center, northwest)", "type": "text", "default": "southeast" }
+      ]
+    },
+    {
+      "id": "strip_metadata",
+      "label": "Strip Metadata",
+      "description": "Remove EXIF/IPTC/XMP metadata from every image in a folder, useful before sharing photos publicly.",
+      "template": "for f in {sourceFolder}/*; do magick \"$f\" -strip {destination}/\"$(basename \"$f\")\"; done",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" }
+      ]
+    },
+    {
+      "id": "contact_sheet",
+      "label": "Contact Sheet",
+      "description": "Build a single contact-sheet image tiling thumbnails of every image in a folder.",
+      "template": "magick montage {sourceFolder}/*.{extension} -tile {columns}x -geometry +5+5 {destination}/contact_sheet.jpg",
+      "fields": [
+        { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "extension", "label": "File Extension (e.g. jpg, png)", "type": "text", "default": "jpg" },
+        { "name": "columns", "label": "Columns", "type": "text", "default": "4" },
+        { "name": "destination", "label": "Destination Folder", "type": "folder" }
+      ]
+    }
+  ]
+}
