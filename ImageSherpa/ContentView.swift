@@ -84,16 +84,8 @@ private struct ToolRow: View {
     let status: HomebrewManager.FormulaStatus?
 
     var body: some View {
-        HStack {
-            Text(tool.displayName)
-                .foregroundStyle(status?.isInstalled == false ? .secondary : .primary)
-            Spacer()
-            if status?.isInstalled == false {
-                Text("Not installed")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        Text(tool.displayName)
+            .foregroundStyle(status?.isInstalled == false ? .secondary : .primary)
     }
 }
 
