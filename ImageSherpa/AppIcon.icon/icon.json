@@ -1,0 +1,48 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "hidden" : false,
+      "layers" : [
+        {
+          "image-name" : "Image Layer 2.png",
+          "name" : "Command Prompt",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              130.42244554957028,
+              152.92626454541573
+            ]
+          }
+        },
+        {
+          "image-name" : "Image Layer.png",
+          "name" : "Mountain Pic",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -102.45132219892446,
+              -125.12956723598143
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
