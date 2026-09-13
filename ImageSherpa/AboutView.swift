@@ -18,11 +18,6 @@ struct AboutView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
     }
 
-    private var copyright: String {
-        Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String
-            ?? "Copyright © 2026 So Wired Productions. All rights reserved."
-    }
-
     var body: some View {
         VStack(spacing: 12) {
             if let icon = NSApplication.shared.applicationIconImage {
@@ -35,22 +30,19 @@ struct AboutView: View {
                 .font(.title)
                 .bold()
 
-            Text("Command-line photo tools, no command line required")
+            Text("Command-line photo and video tools,\nno command line required.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
             Text("Version \(version) (\(build))")
                 .font(.body)
                 .foregroundStyle(.secondary)
 
-            Text(copyright)
+            Text("Copyright © 2026 So Wired Productions\nAll rights reserved.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-
-            Text("So Wired Productions")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(32)
         .frame(width: 320)
