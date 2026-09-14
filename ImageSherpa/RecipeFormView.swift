@@ -122,13 +122,18 @@ struct RecipeFormView: View {
             }
         } else if dynamicOptionsFailed.contains(field.name) {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    TextField(field.label, text: binding(for: field))
-                    Button("Retry") { Task { await loadOptions(for: field) } }
-                }
                 Label("Couldn't load options automatically — enter a value manually.", systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
+                HStack {
+                    // Without an explicit layoutPriority, the Button's compression
+                    // resistance beats the TextField's in a tight HStack and squeezes it
+                    // down to a sliver — it renders, but looks like there's no text field
+                    // at all next to "Retry".
+                    TextField(field.label, text: binding(for: field))
+                        .layoutPriority(1)
+                    Button("Retry") { Task { await loadOptions(for: field) } }
+                }
             }
         } else {
             HStack {
