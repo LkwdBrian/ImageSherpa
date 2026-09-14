@@ -31,29 +31,30 @@ struct DependenciesView: View {
                     .padding()
             }
 
-            if !toolsNeedingFullDiskAccess.isEmpty && fullDiskAccessDenied {
-                HStack {
-                    Label(
-                        "Full Disk Access needed for \(toolsNeedingFullDiskAccess.map(\.displayName).joined(separator: ", ")) to read your Photos library directly.",
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(.orange)
-                    Spacer()
-                    Button("Open Settings…") { PermissionHelp.openFullDiskAccessSettings() }
-                    Button("Recheck") { fullDiskAccessDenied = FullDiskAccessCheck.isDenied() }
+            List {
+                if !toolsNeedingFullDiskAccess.isEmpty {
+                    Section("System Access") {
+                        FullDiskAccessRow(
+                            toolNames: toolsNeedingFullDiskAccess.map(\.displayName),
+                            isDenied: fullDiskAccessDenied,
+                            onOpenSettings: { PermissionHelp.openFullDiskAccessSettings() },
+                            onRecheck: { fullDiskAccessDenied = FullDiskAccessCheck.isDenied() }
+                        )
+                    }
                 }
-                .padding()
-            }
 
-            List(tools) { tool in
-                DependencyRow(
-                    tool: tool,
-                    status: statuses[tool.id],
-                    isBusy: busyToolIDs.contains(tool.id),
-                    isManagerAvailable: PackageManagerRouter.isAvailable(for: tool.installMethod),
-                    onInstall: { await installOrUninstall(tool, install: true) },
-                    onUninstall: { await installOrUninstall(tool, install: false) }
-                )
+                Section("Tools") {
+                    ForEach(tools) { tool in
+                        DependencyRow(
+                            tool: tool,
+                            status: statuses[tool.id],
+                            isBusy: busyToolIDs.contains(tool.id),
+                            isManagerAvailable: PackageManagerRouter.isAvailable(for: tool.installMethod),
+                            onInstall: { await installOrUninstall(tool, install: true) },
+                            onUninstall: { await installOrUninstall(tool, install: false) }
+                        )
+                    }
+                }
             }
 
             if !logLines.isEmpty {
@@ -142,6 +143,45 @@ private struct DependencyRow: View {
                 }
                 .disabled(!isManagerAvailable)
             }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Always-visible status row (not just a warning-when-missing banner) for Full Disk
+/// Access, the same way DependencyRow always shows a tool's install status. The check
+/// itself runs in-process (FullDiskAccessCheck), not by shelling out to a CLI tool — macOS
+/// has no query API for this, so it probes a known-gated file directly and reads errno.
+private struct FullDiskAccessRow: View {
+    let toolNames: [String]
+    let isDenied: Bool
+    let onOpenSettings: () -> Void
+    let onRecheck: () -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("Full Disk Access").font(.headline)
+                Text("Needed for \(toolNames.joined(separator: ", ")) to read your Photos library directly.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(isDenied ? "Not granted" : "Granted")
+                    .font(.caption2)
+                    .foregroundStyle(isDenied ? .orange : .green)
+            }
+
+            Spacer()
+
+            if isDenied {
+                Button("Open Settings…", action: onOpenSettings)
+            }
+            Button {
+                onRecheck()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help("Recheck")
         }
         .padding(.vertical, 4)
     }

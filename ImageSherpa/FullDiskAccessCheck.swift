@@ -6,10 +6,12 @@ import Foundation
 /// that's reliably present and reliably Full-Disk-Access-gated on any Mac, and see whether
 /// reading it fails with EPERM specifically.
 enum FullDiskAccessCheck {
-    /// Safari's CloudTabs database: present on virtually any Mac with iCloud set up
-    /// (regardless of whether Photos/Mail/etc. are configured), and gated the same way the
-    /// Photos library is.
-    private static let probePath = NSHomeDirectory() + "/Library/Safari/CloudTabs.db"
+    /// The TCC database itself: core macOS infrastructure guaranteed to exist on every Mac
+    /// (unlike, say, Safari's CloudTabs.db, which only exists if iCloud Tabs sync has ever
+    /// been used — confirmed missing on this machine, which silently made an earlier version
+    /// of this probe always report "granted" regardless of the real state) and reliably
+    /// Full-Disk-Access-gated.
+    private static let probePath = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC/TCC.db"
 
     /// Checks the raw POSIX errno rather than a higher-level FileManager/Data API, since
     /// only EPERM unambiguously means "TCC denied this". ENOENT (the file just isn't there
