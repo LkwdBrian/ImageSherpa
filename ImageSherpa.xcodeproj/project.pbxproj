@@ -403,6 +403,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 So Wired Productions. All rights reserved.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "ImageSherpa runs osxphotos, a command-line tool that reads your Photos library to export photos, list albums, and build the album picker in recipe forms.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -433,6 +434,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 So Wired Productions. All rights reserved.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "ImageSherpa runs osxphotos, a command-line tool that reads your Photos library to export photos, list albums, and build the album picker in recipe forms.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

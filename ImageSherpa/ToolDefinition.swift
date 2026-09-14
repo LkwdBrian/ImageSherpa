@@ -7,12 +7,17 @@ struct ToolDefinition: Codable, Identifiable {
     let id: String
     let displayName: String
     let summary: String
-    let installMethod: String   // currently only "brew" is handled; leaves room for "pip", "npm", "cargo" later
+    let installMethod: String   // "brew" or "pipx" — see PackageManagerRouter
     let formula: String
     let homepage: String
     let versionCommand: String
     let versionRegex: String
     let recipes: [Recipe]
+    /// True for tools (currently just osxphotos) that read the Photos library directly
+    /// rather than through PhotoKit, which macOS gates behind Full Disk Access rather than
+    /// a per-app Photos prompt. Drives the Full Disk Access gate in ContentView/
+    /// DependenciesView — see FullDiskAccessCheck and CLAUDE.md's Framework Reality Checks.
+    let needsFullDiskAccess: Bool?
 }
 
 struct Recipe: Codable, Identifiable, Hashable {
@@ -29,12 +34,25 @@ struct RecipeField: Codable, Identifiable, Hashable {
     let label: String
     let type: FieldType
     let `default`: String?
+    let options: [String]?          // choice: fixed list of selectable values
+    let optionsCommand: String?     // dynamic_choice: shell command whose stdout (one option per line) populates the picker
+
+    init(name: String, label: String, type: FieldType, default: String? = nil, options: [String]? = nil, optionsCommand: String? = nil) {
+        self.name = name
+        self.label = label
+        self.type = type
+        self.default = `default`
+        self.options = options
+        self.optionsCommand = optionsCommand
+    }
 
     enum FieldType: String, Codable, Hashable {
         case text          // short values with no spaces expected: numbers, extensions, dates
         case quotedText = "quoted_text"   // free-text values that may contain spaces: names, keywords, cities
         case folder
         case file
+        case choice          // fixed set of options known ahead of time, no shell-out
+        case dynamicChoice = "dynamic_choice"   // options populated by running optionsCommand
     }
 }
 

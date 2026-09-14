@@ -2,11 +2,12 @@
   "id": "osxphotos",
   "displayName": "OSXPhotos",
   "summary": "Query and export photos from Apple Photos.app, including metadata, albums, and faces.",
-  "installMethod": "brew",
+  "installMethod": "pipx",
   "formula": "osxphotos",
   "homepage": "https://github.com/RhetTbull/osxphotos",
   "versionCommand": "osxphotos version",
   "versionRegex": "osxphotos, version (\\S+)",
+  "needsFullDiskAccess": true,
   "recipes": [
     {
       "id": "export_by_album",
@@ -15,7 +16,12 @@
       "template": "osxphotos export {destination} --album {album} --update",
       "fields": [
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
-        { "name": "album", "label": "Album Name", "type": "quoted_text" }
+        {
+          "name": "album",
+          "label": "Album Name",
+          "type": "dynamic_choice",
+          "optionsCommand": "osxphotos albums | awk '/^albums:/{f=1;next} /^shared albums:/{f=0} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+        }
       ]
     },
     {

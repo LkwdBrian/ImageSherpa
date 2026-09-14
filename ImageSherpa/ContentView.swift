@@ -15,7 +15,8 @@ private enum SidebarSelection: Hashable {
 struct ContentView: View {
     private let tools = ToolRegistryLoader.loadAll()
     @State private var selection: SidebarSelection? = .dependencies
-    @State private var statuses: [String: HomebrewManager.FormulaStatus] = [:]
+    @State private var statuses: [String: PackageStatus] = [:]
+    @State private var fullDiskAccessDenied = FullDiskAccessCheck.isDenied()
 
     var body: some View {
         NavigationSplitView {
@@ -46,12 +47,16 @@ struct ContentView: View {
                         // Not-installed tools would only lead to a doomed-to-fail recipe
                         // run ("command not found"); gate on the same status the
                         // Dependencies tab tracks instead of letting that happen (#12).
-                        if statuses[tool.id]?.isInstalled == true {
-                            ToolDetailView(tool: tool)
-                        } else {
+                        if statuses[tool.id]?.isInstalled != true {
                             ToolNotInstalledView(tool: tool) {
                                 selection = .dependencies
                             }
+                        } else if tool.needsFullDiskAccess == true && fullDiskAccessDenied {
+                            ToolNeedsFullDiskAccessView(tool: tool) {
+                                fullDiskAccessDenied = FullDiskAccessCheck.isDenied()
+                            }
+                        } else {
+                            ToolDetailView(tool: tool)
                         }
                     } else {
                         DependenciesView()
@@ -63,6 +68,9 @@ struct ContentView: View {
         .onChange(of: selection) { _, newValue in
             // Re-check status on every selection change (not just once at launch) so
             // installing a tool in Dependencies and switching back reflects immediately.
+            // Full Disk Access has no change-notification API either, so recheck it here
+            // too — cheap enough (a single probe syscall) to just always redo.
+            fullDiskAccessDenied = FullDiskAccessCheck.isDenied()
             guard case .tool(let id) = newValue, let tool = tools.first(where: { $0.id == id }) else { return }
             Task { await refreshStatus(for: tool) }
         }
@@ -75,13 +83,13 @@ struct ContentView: View {
     }
 
     private func refreshStatus(for tool: ToolDefinition) async {
-        statuses[tool.id] = await HomebrewManager.status(forFormula: tool.formula)
+        statuses[tool.id] = await PackageManagerRouter.status(for: tool)
     }
 }
 
 private struct ToolRow: View {
     let tool: ToolDefinition
-    let status: HomebrewManager.FormulaStatus?
+    let status: PackageStatus?
 
     var body: some View {
         Text(tool.displayName)
@@ -107,6 +115,36 @@ private struct ToolNotInstalledView: View {
                 .frame(maxWidth: 360)
             Button("Go to Dependencies", action: onGoToDependencies)
                 .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle(tool.displayName)
+    }
+}
+
+private struct ToolNeedsFullDiskAccessView: View {
+    let tool: ToolDefinition
+    let onRecheck: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "lock.shield")
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+            Text("\(tool.displayName) needs Full Disk Access")
+                .font(.title3.bold())
+            Text("\(tool.displayName) reads your Photos library directly, which macOS gates behind Full Disk Access rather than a per-app prompt. Grant it to ImageSherpa in System Settings, then come back here.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+            HStack {
+                Button("Open Full Disk Access Settings…") {
+                    PermissionHelp.openFullDiskAccessSettings()
+                }
+                .buttonStyle(.borderedProminent)
+                Button("I granted it — recheck", action: onRecheck)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

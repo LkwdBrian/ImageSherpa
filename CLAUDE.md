@@ -104,7 +104,7 @@ Decisions are locked. Do not suggest alternatives unless Brian explicitly reopen
 
 | Tool | Install | Recipes |
 |---|---|---|
-| osxphotos | brew | Export by album, by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
+| osxphotos | pipx | Export by album (album field is a live `dynamic_choice` picker, #15), by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
 | imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet |
 | ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video |
 | exiftool | brew | Remove GPS location only, rename by capture date, add copyright/author, geotag by decimal coordinates, export metadata to CSV |
@@ -252,9 +252,48 @@ tester.
   `HomebrewManager.installedVersion` currently parses `brew list --versions` output directly
   instead, which is more reliable for most formulae. Keep the regex field as a documented
   fallback path, don't remove it.
-- **No support yet for non-Homebrew install methods** (pip-only tools, for instance).
-  `installMethod` is a string for exactly this reason — add a parallel manager (e.g.
-  `PipManager`) rather than overloading `HomebrewManager` when this is needed.
+- **osxphotos has no Homebrew formula — it's pipx-only** (fixed in #18). It's a Python CLI
+  installed via `pipx install osxphotos`, not a compiled brew formula. `PipxManager.swift`
+  (parallel to `HomebrewManager.swift`) and `PackageManagerRouter.swift` (dispatches by
+  `tool.installMethod`) handle this; `osxphotos.json` declares `"installMethod": "pipx"`.
+  This is the template for any other pip-only tool added later — new `installMethod` value +
+  a parallel manager, not overloading `HomebrewManager`.
+- **osxphotos needs Full Disk Access, not Photos-library permission, and this cannot be
+  requested programmatically.** osxphotos reads `Photos.sqlite` directly rather than through
+  PhotoKit, so every osxphotos command (recipe runs and the `dynamic_choice` album picker
+  alike) is gated by the Full Disk Access TCC category, not `NSPhotoLibraryUsageDescription`
+  (which the app also declares, for if/when #17's thumbnail preview uses PhotoKit directly —
+  but that key does nothing for osxphotos's raw file access). Unlike
+  Photos/Camera/Microphone/Contacts, macOS has no `requestAuthorization`-style API for Full
+  Disk Access and never shows an automatic prompt — Apple deliberately requires a human to
+  add the app via System Settings → Privacy & Security → Full Disk Access → **+**, with a
+  password/Touch ID prompt. (Correction to an earlier version of this note: Apple's own WWDC
+  2019 guidance confirms macOS *does* auto-prepopulate an app in that list, unchecked, the
+  first time it's genuinely denied — this is why random unrelated apps show up there. Full
+  Disk Access just has no query API and no prompt dialog, so a user has to know to look.)
+  `PermissionHelp.swift` detects the "Operation not permitted" EPERM signature and offers a
+  button that opens the Full Disk Access pane directly
+  (`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`); `FullDiskAccessCheck.swift`
+  proactively probes `~/Library/Safari/CloudTabs.db` (checking raw `errno == EPERM`, since
+  higher-level FileManager APIs don't reliably trigger the same TCC check) so `ContentView`/
+  `DependenciesView` can gate access and show this before a cryptic failure, not just react
+  to one. That's the ceiling of what's automatable here — there is no way to trigger the
+  actual grant, or make the app self-register in the list, programmatically.
+- **`RecipeRunner` must not rely on a login shell (`-l`) alone to reproduce a user's PATH —
+  it silently misses anything added via `.zshrc`.** A `-l` shell sources `~/.zprofile`, not
+  `~/.zshrc`; only an *interactive* shell (`-i`) sources `.zshrc`. `pipx`'s PATH setup
+  (adding `~/.local/bin`, where pipx-installed tools' shims live) commonly lands in
+  `.zshrc`. The practical effect: a recipe or `optionsCommand` that resolves fine when you
+  test it by hand in Terminal can fail with a plain "command not found" when run from the
+  actual app — which looks nothing like a PATH problem and is easy to misdiagnose as a
+  permissions issue instead (this cost an entire debugging session on 2026-09-13 chasing
+  Full Disk Access before the real cause — silent "command not found" with zero TCC log
+  activity — was found via `log stream --predicate 'subsystem == "com.apple.TCC"'` showing
+  *no* access check at all for the failing attempt). Fixed by `RecipeRunner.withGuaranteedPath`,
+  which explicitly prepends `~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` to
+  `PATH` before every command, rather than trusting shell dotfile-sourcing behavior. Any new
+  recipe or `optionsCommand` that depends on a tool installed via pipx/pip is covered by
+  this automatically — no per-recipe workaround needed.
 - **osxphotos CLI flags referenced in recipes** (`--place`, `--person`, `--year`,
   `--query-function`) were sourced from documentation and may drift across osxphotos
   versions. Verify against `osxphotos help export` on the actual installed version before

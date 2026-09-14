@@ -46,7 +46,7 @@ final class RecipeRunner {
             // keywords, folder paths can all contain spaces). Leave bare "text" tokens
             // (widths, percentages, extensions, dates) unquoted so glob patterns like
             // *.jpg still expand correctly and numeric values pass through cleanly.
-            let needsQuoting = [RecipeField.FieldType.folder, .file, .quotedText].contains(field.type)
+            let needsQuoting = [RecipeField.FieldType.folder, .file, .quotedText, .choice, .dynamicChoice].contains(field.type)
             let safeValue = needsQuoting ? "\"\(rawValue)\"" : rawValue
             command = command.replacingOccurrences(of: token, with: safeValue)
         }
@@ -61,6 +61,72 @@ final class RecipeRunner {
         Bundle.main.resourceURL?.path
     }
 
+    /// A login shell (`-l`) sources `~/.zprofile`, not `~/.zshrc` — only an *interactive*
+    /// shell sources `.zshrc`. If a tool's install location was added to PATH via a line in
+    /// `.zshrc` (as pipx's `ensurepath` commonly does, adding `~/.local/bin`), a plain `-l`
+    /// subprocess never picks it up, and the command silently becomes "command not found" —
+    /// which looks nothing like a permission problem, and is easy to mistake for one (see
+    /// CLAUDE.md's Framework Reality Checks). Rather than depend on the user's shell dotfiles
+    /// at all, explicitly prepend the known install locations every recipe/optionsCommand
+    /// might need, the same way HomebrewManager/PipxManager resolve their own binaries by
+    /// explicit path instead of trusting shell PATH resolution.
+    private static func withGuaranteedPath(_ command: String) -> String {
+        "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; " + command
+    }
+
+    enum OptionsLoadResult {
+        case success([String])
+        case fullDiskAccessNeeded
+        case failure
+    }
+
+    /// Runs a dynamic_choice field's optionsCommand and returns its stdout split into
+    /// non-blank lines, one per option. Stderr is captured (not mixed into the options
+    /// list — noise there would show up as bogus picker entries) only to check whether the
+    /// failure looks like a Full Disk Access denial, so the form can point at the fix
+    /// instead of a generic "couldn't load options" message. Never throws; callers fall
+    /// back to a plain text field on any failure per the "never block the form" rule.
+    static func runOptionsCommand(_ command: String) async -> OptionsLoadResult {
+        await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-l", "-c", withGuaranteedPath(command)]
+
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            process.standardOutput = outPipe
+            process.standardError = errPipe
+
+            process.terminationHandler = { proc in
+                let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+                let text = String(data: data, encoding: .utf8) ?? ""
+                let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+
+                guard proc.terminationStatus == 0, !lines.isEmpty else {
+                    // optionsCommand is typically a pipeline (e.g. "osxphotos albums | awk
+                    // ..."), so terminationStatus reflects the last stage (awk), not
+                    // osxphotos — a crashing upstream command still exits the pipeline 0
+                    // with empty output. Always check stderr here, not just on a nonzero
+                    // exit, or a real failure disguised as an empty success would never get
+                    // classified as a Full Disk Access denial.
+                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                    let errText = String(data: errData, encoding: .utf8) ?? ""
+                    let result: OptionsLoadResult = PermissionHelp.looksLikeFullDiskAccessDenial(errText)
+                        ? .fullDiskAccessNeeded : .failure
+                    continuation.resume(returning: result)
+                    return
+                }
+                continuation.resume(returning: .success(lines))
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(returning: .failure)
+            }
+        }
+    }
+
     /// Runs the built command, streaming stdout/stderr lines to the handler as they arrive.
     static func execute(
         command: String,
@@ -69,7 +135,7 @@ final class RecipeRunner {
         await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-l", "-c", command]  // -l loads the login profile so brew's PATH is present
+            process.arguments = ["-l", "-c", withGuaranteedPath(command)]  // -l loads the login profile; withGuaranteedPath covers what -l alone misses (see its doc comment)
 
             let pipe = Pipe()
             process.standardOutput = pipe
