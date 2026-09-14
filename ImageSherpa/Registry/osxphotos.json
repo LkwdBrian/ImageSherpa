@@ -59,7 +59,12 @@
       "template": "osxphotos export {destination} --person {personName} --update",
       "fields": [
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
-        { "name": "personName", "label": "Person Name", "type": "quoted_text" }
+        {
+          "name": "personName",
+          "label": "Person Name",
+          "type": "dynamic_choice",
+          "optionsCommand": "osxphotos persons | awk '/^persons:/{f=1;next} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+        }
       ]
     },
     {
@@ -87,7 +92,12 @@
       "template": "env OSXPHOTOS_TOP_PERCENT={percent} osxphotos export {destination} --person {personName} --query-function {scriptsDir}/photo_scoring.py::top_percent --update",
       "fields": [
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
-        { "name": "personName", "label": "Person Name", "type": "quoted_text" },
+        {
+          "name": "personName",
+          "label": "Person Name",
+          "type": "dynamic_choice",
+          "optionsCommand": "osxphotos persons | awk '/^persons:/{f=1;next} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+        },
         { "name": "percent", "label": "Top Percent to Keep (1-100)", "type": "text", "default": "20" }
       ]
     },
@@ -101,6 +111,94 @@
         { "name": "year", "label": "Year (e.g. 2025)", "type": "text" },
         { "name": "percent", "label": "Top Percent to Keep (1-100)", "type": "text", "default": "10" }
       ]
+    }
+  ],
+  "availableOptions": [
+    {
+      "flag": "--album",
+      "label": "Filter by Album",
+      "description": "Only export photos in this album.",
+      "insertText": "--album {album}",
+      "suggestedFields": [
+        {
+          "name": "album",
+          "label": "Album Name",
+          "type": "dynamic_choice",
+          "optionsCommand": "osxphotos albums | awk '/^albums:/{f=1;next} /^shared albums:/{f=0} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+        }
+      ]
+    },
+    {
+      "flag": "--keyword",
+      "label": "Filter by Keyword",
+      "description": "Only export photos tagged with this keyword.",
+      "insertText": "--keyword {keyword}",
+      "suggestedFields": [
+        { "name": "keyword", "label": "Keyword", "type": "quoted_text" }
+      ]
+    },
+    {
+      "flag": "--person",
+      "label": "Filter by Person",
+      "description": "Only export photos containing this recognized face.",
+      "insertText": "--person {personName}",
+      "suggestedFields": [
+        {
+          "name": "personName",
+          "label": "Person Name",
+          "type": "dynamic_choice",
+          "optionsCommand": "osxphotos persons | awk '/^persons:/{f=1;next} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+        }
+      ]
+    },
+    {
+      "flag": "--place",
+      "label": "Filter by Place",
+      "description": "Only export photos taken at this city/place.",
+      "insertText": "--place {city}",
+      "suggestedFields": [
+        { "name": "city", "label": "City or Place Name", "type": "quoted_text" }
+      ]
+    },
+    {
+      "flag": "--year",
+      "label": "Filter by Year",
+      "description": "Only export photos taken in this year.",
+      "insertText": "--year {year}",
+      "suggestedFields": [
+        { "name": "year", "label": "Year (e.g. 2025)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "--from-date / --to-date",
+      "label": "Filter by Date Range",
+      "description": "Only export photos taken between two dates.",
+      "insertText": "--from-date {startDate} --to-date {endDate}",
+      "suggestedFields": [
+        { "name": "startDate", "label": "Start Date (YYYY-MM-DD)", "type": "text" },
+        { "name": "endDate", "label": "End Date (YYYY-MM-DD)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "--update",
+      "label": "Skip Already-Exported",
+      "description": "Incremental export: skip photos already exported to the destination.",
+      "insertText": "--update",
+      "suggestedFields": []
+    },
+    {
+      "flag": "--overwrite",
+      "label": "Overwrite Existing Files",
+      "description": "Overwrite files already in the destination instead of skipping them.",
+      "insertText": "--overwrite",
+      "suggestedFields": []
+    },
+    {
+      "flag": "--download-missing",
+      "label": "Download Missing Originals",
+      "description": "Download full-resolution originals from iCloud if not stored locally.",
+      "insertText": "--download-missing",
+      "suggestedFields": []
     }
   ]
 }

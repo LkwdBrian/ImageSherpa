@@ -64,5 +64,92 @@
         { "name": "destination", "label": "Destination Folder", "type": "folder" }
       ]
     }
+  ],
+  "availableOptions": [
+    {
+      "flag": "-resize",
+      "label": "Resize",
+      "description": "Resize using a percentage (e.g. 50%) or WxH pixel dimensions.",
+      "insertText": "-resize {size}",
+      "suggestedFields": [
+        { "name": "size", "label": "Resize To (e.g. 50% or 1920x1080)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-quality",
+      "label": "Quality",
+      "description": "Set output quality for lossy formats like JPEG (1-100).",
+      "insertText": "-quality {quality}",
+      "suggestedFields": [
+        { "name": "quality", "label": "Quality (1-100)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-rotate",
+      "label": "Rotate",
+      "description": "Rotate the image by a number of degrees.",
+      "insertText": "-rotate {degrees}",
+      "suggestedFields": [
+        { "name": "degrees", "label": "Rotation (degrees)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-strip",
+      "label": "Strip Metadata",
+      "description": "Remove all embedded metadata (EXIF/IPTC/XMP).",
+      "insertText": "-strip",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-flip",
+      "label": "Flip Vertically",
+      "description": "Flip the image top-to-bottom.",
+      "insertText": "-flip",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-flop",
+      "label": "Flip Horizontally",
+      "description": "Mirror the image left-to-right.",
+      "insertText": "-flop",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-crop",
+      "label": "Crop",
+      "description": "Crop to WxH pixels starting at an X,Y offset.",
+      "insertText": "-crop {width}x{height}+{x}+{y}",
+      "suggestedFields": [
+        { "name": "width", "label": "Crop Width (px)", "type": "text" },
+        { "name": "height", "label": "Crop Height (px)", "type": "text" },
+        { "name": "x", "label": "Crop X Offset (px)", "type": "text" },
+        { "name": "y", "label": "Crop Y Offset (px)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-gravity",
+      "label": "Gravity / Position",
+      "description": "Anchor point used by crop/composite operations (e.g. center, southeast).",
+      "insertText": "-gravity {gravity}",
+      "suggestedFields": [
+        { "name": "gravity", "label": "Position (e.g. center, southeast, northwest)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-blur",
+      "label": "Blur",
+      "description": "Apply a Gaussian blur, given as radius x sigma (e.g. 0x8).",
+      "insertText": "-blur {radiusBySigma}",
+      "suggestedFields": [
+        { "name": "radiusBySigma", "label": "Blur (radius x sigma, e.g. 0x8)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-colorspace Gray",
+      "label": "Grayscale",
+      "description": "Convert the image to grayscale.",
+      "insertText": "-colorspace Gray",
+      "suggestedFields": []
+    }
   ]
 }

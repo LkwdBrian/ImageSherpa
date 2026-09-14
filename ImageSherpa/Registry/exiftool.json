@@ -58,5 +58,87 @@
         { "name": "destination", "label": "Destination Folder", "type": "folder" }
       ]
     }
+  ],
+  "availableOptions": [
+    {
+      "flag": "-Artist=",
+      "label": "Set Author",
+      "description": "Set the Artist/Author tag.",
+      "insertText": "-Artist={artist}",
+      "suggestedFields": [
+        { "name": "artist", "label": "Author/Artist Name", "type": "quoted_text" }
+      ]
+    },
+    {
+      "flag": "-Copyright=",
+      "label": "Set Copyright",
+      "description": "Set the Copyright notice tag.",
+      "insertText": "-Copyright={copyright}",
+      "suggestedFields": [
+        { "name": "copyright", "label": "Copyright Notice", "type": "quoted_text" }
+      ]
+    },
+    {
+      "flag": "-Keywords=",
+      "label": "Set Keyword",
+      "description": "Add or set a keyword tag.",
+      "insertText": "-Keywords={keyword}",
+      "suggestedFields": [
+        { "name": "keyword", "label": "Keyword", "type": "quoted_text" }
+      ]
+    },
+    {
+      "flag": "-GPSLatitude=",
+      "label": "Set GPS Latitude",
+      "description": "Set the GPS latitude in decimal degrees (negative = South); also sets the hemisphere reference.",
+      "insertText": "-GPSLatitude={latitude} -GPSLatitudeRef={latitude}",
+      "suggestedFields": [
+        { "name": "latitude", "label": "Latitude (e.g. 40.7484 or -33.8688)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-GPSLongitude=",
+      "label": "Set GPS Longitude",
+      "description": "Set the GPS longitude in decimal degrees (negative = West); also sets the hemisphere reference.",
+      "insertText": "-GPSLongitude={longitude} -GPSLongitudeRef={longitude}",
+      "suggestedFields": [
+        { "name": "longitude", "label": "Longitude (e.g. -73.9857 or 151.2093)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-overwrite_original",
+      "label": "Overwrite Original",
+      "description": "Don't keep an _original backup copy of edited files.",
+      "insertText": "-overwrite_original",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-r",
+      "label": "Recurse Subfolders",
+      "description": "Process subdirectories recursively.",
+      "insertText": "-r",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-All=",
+      "label": "Remove All Metadata",
+      "description": "Strip every metadata tag from the file.",
+      "insertText": "-All=",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-csv",
+      "label": "Export as CSV",
+      "description": "Output all matched metadata as CSV instead of the default format.",
+      "insertText": "-csv",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-json",
+      "label": "Export as JSON",
+      "description": "Output all matched metadata as JSON instead of the default format.",
+      "insertText": "-json",
+      "suggestedFields": []
+    }
   ]
 }

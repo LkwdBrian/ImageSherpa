@@ -18,6 +18,43 @@ struct ToolDefinition: Codable, Identifiable {
     /// a per-app Photos prompt. Drives the Full Disk Access gate in ContentView/
     /// DependenciesView — see FullDiskAccessCheck and CLAUDE.md's Framework Reality Checks.
     let needsFullDiskAccess: Bool?
+    /// A curated reference list of this tool's CLI flags, surfaced in RecipeEditorView so
+    /// a user building/editing a recipe can pick a flag by name instead of already
+    /// knowing the tool's command-line syntax (see #11). Optional so a registry file
+    /// that hasn't been curated yet still decodes fine with an empty reference list.
+    let availableOptions: [ToolOption]?
+}
+
+/// One curated CLI flag a user can insert while building a recipe's command template in
+/// RecipeEditorView. Deliberately not exhaustive — mirrors the "recipes cover the 80%
+/// case" philosophy in CLAUDE.md rather than mirroring a full `--help` dump.
+struct ToolOption: Codable, Identifiable, Hashable {
+    var id: String { flag }
+    let flag: String            // the flag itself, e.g. "-resize", shown as a quick reference
+    let label: String           // short human name, e.g. "Resize"
+    let description: String     // one-line explanation of what it does
+    let insertText: String      // text spliced into the template verbatim, e.g. "-resize {size}"
+    /// Fields the template placeholders in insertText need. Inserting this option also
+    /// appends any of these not already present (by name) to the recipe's field list, so
+    /// picking "Resize" both writes "-resize {size}" into the template and adds a "size"
+    /// field to fill in — the user never has to hand-write the matching RecipeField.
+    let suggestedFields: [SuggestedField]?
+
+    struct SuggestedField: Codable, Hashable {
+        let name: String
+        let label: String
+        let type: RecipeField.FieldType
+        let options: [String]?
+        let optionsCommand: String?
+
+        init(name: String, label: String, type: RecipeField.FieldType, options: [String]? = nil, optionsCommand: String? = nil) {
+            self.name = name
+            self.label = label
+            self.type = type
+            self.options = options
+            self.optionsCommand = optionsCommand
+        }
+    }
 }
 
 struct Recipe: Codable, Identifiable, Hashable {
