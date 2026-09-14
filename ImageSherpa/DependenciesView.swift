@@ -7,6 +7,11 @@ struct DependenciesView: View {
     @State private var statuses: [String: PackageStatus] = [:]
     @State private var busyToolIDs: Set<String> = []
     @State private var logLines: [String] = []
+    @State private var fullDiskAccessDenied = FullDiskAccessCheck.isDenied()
+
+    private var toolsNeedingFullDiskAccess: [ToolDefinition] {
+        tools.filter { $0.needsFullDiskAccess == true }
+    }
 
     /// Install methods at least one registered tool needs but whose manager isn't present
     /// (e.g. Homebrew or pipx not installed) — surfaced as a banner per method rather than
@@ -24,6 +29,20 @@ struct DependenciesView: View {
                 Label(missingManagerMessage(for: method), systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .padding()
+            }
+
+            if !toolsNeedingFullDiskAccess.isEmpty && fullDiskAccessDenied {
+                HStack {
+                    Label(
+                        "Full Disk Access needed for \(toolsNeedingFullDiskAccess.map(\.displayName).joined(separator: ", ")) to read your Photos library directly.",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Open Settings…") { PermissionHelp.openFullDiskAccessSettings() }
+                    Button("Recheck") { fullDiskAccessDenied = FullDiskAccessCheck.isDenied() }
+                }
+                .padding()
             }
 
             List(tools) { tool in

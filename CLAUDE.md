@@ -267,13 +267,33 @@ tester.
   Photos/Camera/Microphone/Contacts, macOS has no `requestAuthorization`-style API for Full
   Disk Access and never shows an automatic prompt — Apple deliberately requires a human to
   add the app via System Settings → Privacy & Security → Full Disk Access → **+**, with a
-  password/Touch ID prompt, every time, for every app. It also does NOT auto-populate that
-  list after a denied attempt (unlike the other categories), so a first-time user has no way
-  to discover this on their own. `PermissionHelp.swift` detects the "Operation not permitted"
-  EPERM signature and offers a button that opens the Full Disk Access pane directly
-  (`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`) — that's the
-  ceiling of what's automatable here; don't spend time looking for a way to trigger the
-  actual grant programmatically, there isn't one.
+  password/Touch ID prompt. (Correction to an earlier version of this note: Apple's own WWDC
+  2019 guidance confirms macOS *does* auto-prepopulate an app in that list, unchecked, the
+  first time it's genuinely denied — this is why random unrelated apps show up there. Full
+  Disk Access just has no query API and no prompt dialog, so a user has to know to look.)
+  `PermissionHelp.swift` detects the "Operation not permitted" EPERM signature and offers a
+  button that opens the Full Disk Access pane directly
+  (`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`); `FullDiskAccessCheck.swift`
+  proactively probes `~/Library/Safari/CloudTabs.db` (checking raw `errno == EPERM`, since
+  higher-level FileManager APIs don't reliably trigger the same TCC check) so `ContentView`/
+  `DependenciesView` can gate access and show this before a cryptic failure, not just react
+  to one. That's the ceiling of what's automatable here — there is no way to trigger the
+  actual grant, or make the app self-register in the list, programmatically.
+- **`RecipeRunner` must not rely on a login shell (`-l`) alone to reproduce a user's PATH —
+  it silently misses anything added via `.zshrc`.** A `-l` shell sources `~/.zprofile`, not
+  `~/.zshrc`; only an *interactive* shell (`-i`) sources `.zshrc`. `pipx`'s PATH setup
+  (adding `~/.local/bin`, where pipx-installed tools' shims live) commonly lands in
+  `.zshrc`. The practical effect: a recipe or `optionsCommand` that resolves fine when you
+  test it by hand in Terminal can fail with a plain "command not found" when run from the
+  actual app — which looks nothing like a PATH problem and is easy to misdiagnose as a
+  permissions issue instead (this cost an entire debugging session on 2026-09-13 chasing
+  Full Disk Access before the real cause — silent "command not found" with zero TCC log
+  activity — was found via `log stream --predicate 'subsystem == "com.apple.TCC"'` showing
+  *no* access check at all for the failing attempt). Fixed by `RecipeRunner.withGuaranteedPath`,
+  which explicitly prepends `~/.local/bin`, `/opt/homebrew/bin`, and `/usr/local/bin` to
+  `PATH` before every command, rather than trusting shell dotfile-sourcing behavior. Any new
+  recipe or `optionsCommand` that depends on a tool installed via pipx/pip is covered by
+  this automatically — no per-recipe workaround needed.
 - **osxphotos CLI flags referenced in recipes** (`--place`, `--person`, `--year`,
   `--query-function`) were sourced from documentation and may drift across osxphotos
   versions. Verify against `osxphotos help export` on the actual installed version before

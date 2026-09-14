@@ -7,12 +7,17 @@ struct ToolDefinition: Codable, Identifiable {
     let id: String
     let displayName: String
     let summary: String
-    let installMethod: String   // currently only "brew" is handled; leaves room for "pip", "npm", "cargo" later
+    let installMethod: String   // "brew" or "pipx" — see PackageManagerRouter
     let formula: String
     let homepage: String
     let versionCommand: String
     let versionRegex: String
     let recipes: [Recipe]
+    /// True for tools (currently just osxphotos) that read the Photos library directly
+    /// rather than through PhotoKit, which macOS gates behind Full Disk Access rather than
+    /// a per-app Photos prompt. Drives the Full Disk Access gate in ContentView/
+    /// DependenciesView — see FullDiskAccessCheck and CLAUDE.md's Framework Reality Checks.
+    let needsFullDiskAccess: Bool?
 }
 
 struct Recipe: Codable, Identifiable, Hashable {

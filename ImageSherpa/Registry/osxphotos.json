@@ -7,6 +7,7 @@
   "homepage": "https://github.com/RhetTbull/osxphotos",
   "versionCommand": "osxphotos version",
   "versionRegex": "osxphotos, version (\\S+)",
+  "needsFullDiskAccess": true,
   "recipes": [
     {
       "id": "export_by_album",
@@ -19,7 +20,7 @@
           "name": "album",
           "label": "Album Name",
           "type": "dynamic_choice",
-          "optionsCommand": "osxphotos albums 2>/dev/null | awk '/^albums:/{f=1;next} /^shared albums:/{f=0} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
+          "optionsCommand": "osxphotos albums | awk '/^albums:/{f=1;next} /^shared albums:/{f=0} f && /^  /{line=$0; sub(/^  /,\"\",line); sub(/: [0-9]+$/,\"\",line); print line}'"
         }
       ]
     },
