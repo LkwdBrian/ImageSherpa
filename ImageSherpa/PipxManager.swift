@@ -1,40 +1,50 @@
 import Foundation
 
-/// Install/uninstall/version-check for Homebrew formulae. Everything in the Recipe UI
-/// assumes a tool is installed via this manager first, so this is the foundation the
-/// rest of the app builds on.
-enum HomebrewManager {
+/// Install/uninstall/version-check for pipx-managed Python CLI tools (e.g. osxphotos,
+/// which has no Homebrew formula — see issue #18). Parallel to HomebrewManager per
+/// CLAUDE.md's Framework Reality Checks: pip-only tools get their own manager rather than
+/// overloading HomebrewManager's brew-specific logic.
+enum PipxManager {
 
-    enum BrewPath {
-        /// Homebrew installs to different prefixes on Apple Silicon vs Intel; check both
-        /// rather than relying on the login shell's PATH, since GUI apps don't inherit it.
-        static let candidates = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
+    enum PipxPath {
+        /// pipx commonly lands in one of these depending on how it itself was installed
+        /// (`brew install pipx`, or `python3 -m pip install --user pipx`). GUI apps don't
+        /// inherit the login shell's PATH, so check known locations directly rather than
+        /// relying on `which`, matching HomebrewManager's approach.
+        static let candidates = [
+            "/opt/homebrew/bin/pipx",
+            "/usr/local/bin/pipx",
+            NSHomeDirectory() + "/.local/bin/pipx"
+        ]
 
         static func resolved() -> String? {
             candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
         }
     }
 
-    static func isHomebrewInstalled() -> Bool {
-        BrewPath.resolved() != nil
+    static func isPipxInstalled() -> Bool {
+        PipxPath.resolved() != nil
     }
 
-    /// Parses `brew list --versions <formula>` output directly rather than the registry's
-    /// versionRegex/versionCommand fields; this is more reliable for most formulae.
-    /// See CLAUDE.md's Framework Reality Checks — the regex path stays as a documented
-    /// fallback, not wired in here.
-    static func status(forFormula formula: String) async -> PackageStatus {
-        guard let brew = BrewPath.resolved() else {
+    /// Parses `pipx list --json` rather than shelling out per-package, since pipx has no
+    /// single-package status subcommand. Uses JSONSerialization (Foundation, no added
+    /// dependency) since this is a one-off ad hoc shape, not worth a Codable model.
+    static func status(forFormula package: String) async -> PackageStatus {
+        guard let pipx = PipxPath.resolved() else {
             return PackageStatus(isInstalled: false, installedVersion: nil)
         }
-        let output = await run(brew, arguments: ["list", "--versions", formula])
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        let output = await run(pipx, arguments: ["list", "--json"])
+        guard
+            let data = output.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let venvs = json["venvs"] as? [String: Any],
+            let entry = venvs[package] as? [String: Any],
+            let metadata = entry["metadata"] as? [String: Any],
+            let mainPackage = metadata["main_package"] as? [String: Any],
+            let version = mainPackage["package_version"] as? String
+        else {
             return PackageStatus(isInstalled: false, installedVersion: nil)
         }
-        // Output looks like "formula 1.2.3" (or multiple versions space-separated).
-        let parts = trimmed.split(separator: " ")
-        let version = parts.count > 1 ? String(parts[1]) : nil
         return PackageStatus(isInstalled: true, installedVersion: version)
     }
 
@@ -50,13 +60,13 @@ enum HomebrewManager {
         arguments: [String],
         onOutput: @escaping (String) -> Void
     ) async -> Int32 {
-        guard let brew = BrewPath.resolved() else {
-            onOutput("Homebrew not found at \(BrewPath.candidates.joined(separator: " or ")).")
+        guard let pipx = PipxPath.resolved() else {
+            onOutput("pipx not found at \(PipxPath.candidates.joined(separator: " or ")). Install it with `brew install pipx` first.")
             return -1
         }
         return await withCheckedContinuation { continuation in
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: brew)
+            process.executableURL = URL(fileURLWithPath: pipx)
             process.arguments = arguments
 
             let pipe = Pipe()
@@ -79,7 +89,7 @@ enum HomebrewManager {
             do {
                 try process.run()
             } catch {
-                DispatchQueue.main.async { onOutput("Failed to launch brew: \(error.localizedDescription)") }
+                DispatchQueue.main.async { onOutput("Failed to launch pipx: \(error.localizedDescription)") }
                 continuation.resume(returning: -1)
             }
         }

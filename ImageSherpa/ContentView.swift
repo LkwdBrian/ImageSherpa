@@ -15,7 +15,7 @@ private enum SidebarSelection: Hashable {
 struct ContentView: View {
     private let tools = ToolRegistryLoader.loadAll()
     @State private var selection: SidebarSelection? = .dependencies
-    @State private var statuses: [String: HomebrewManager.FormulaStatus] = [:]
+    @State private var statuses: [String: PackageStatus] = [:]
 
     var body: some View {
         NavigationSplitView {
@@ -75,13 +75,13 @@ struct ContentView: View {
     }
 
     private func refreshStatus(for tool: ToolDefinition) async {
-        statuses[tool.id] = await HomebrewManager.status(forFormula: tool.formula)
+        statuses[tool.id] = await PackageManagerRouter.status(for: tool)
     }
 }
 
 private struct ToolRow: View {
     let tool: ToolDefinition
-    let status: HomebrewManager.FormulaStatus?
+    let status: PackageStatus?
 
     var body: some View {
         Text(tool.displayName)

@@ -4,20 +4,26 @@ import SwiftUI
 /// actions. This is the piece every recipe depends on, per CLAUDE.md's build order.
 struct DependenciesView: View {
     @State private var tools: [ToolDefinition] = ToolRegistryLoader.loadAll()
-    @State private var statuses: [String: HomebrewManager.FormulaStatus] = [:]
+    @State private var statuses: [String: PackageStatus] = [:]
     @State private var busyToolIDs: Set<String> = []
     @State private var logLines: [String] = []
-    @State private var homebrewInstalled = HomebrewManager.isHomebrewInstalled()
+
+    /// Install methods at least one registered tool needs but whose manager isn't present
+    /// (e.g. Homebrew or pipx not installed) — surfaced as a banner per method rather than
+    /// a single hardcoded "Homebrew isn't installed" check, so this scales as install
+    /// methods are added (see PackageManagerRouter).
+    private var missingManagers: [String] {
+        Set(tools.map(\.installMethod))
+            .filter { !PackageManagerRouter.isAvailable(for: $0) }
+            .sorted()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !homebrewInstalled {
-                Label(
-                    "Homebrew isn't installed. Install it from brew.sh before managing tools here.",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(.orange)
-                .padding()
+            ForEach(missingManagers, id: \.self) { method in
+                Label(missingManagerMessage(for: method), systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .padding()
             }
 
             List(tools) { tool in
@@ -25,7 +31,7 @@ struct DependenciesView: View {
                     tool: tool,
                     status: statuses[tool.id],
                     isBusy: busyToolIDs.contains(tool.id),
-                    isHomebrewInstalled: homebrewInstalled,
+                    isManagerAvailable: PackageManagerRouter.isAvailable(for: tool.installMethod),
                     onInstall: { await installOrUninstall(tool, install: true) },
                     onUninstall: { await installOrUninstall(tool, install: false) }
                 )
@@ -46,9 +52,17 @@ struct DependenciesView: View {
         .task { await refreshAllStatuses() }
     }
 
+    private func missingManagerMessage(for method: String) -> String {
+        switch method {
+        case "brew": return "Homebrew isn't installed. Install it from brew.sh before managing these tools."
+        case "pipx": return "pipx isn't installed. Install it with `brew install pipx` before managing these tools."
+        default: return "No install manager available for \"\(method)\"."
+        }
+    }
+
     private func refreshAllStatuses() async {
         for tool in tools {
-            statuses[tool.id] = await HomebrewManager.status(forFormula: tool.formula)
+            statuses[tool.id] = await PackageManagerRouter.status(for: tool)
         }
     }
 
@@ -59,23 +73,23 @@ struct DependenciesView: View {
 
         let exitCode: Int32
         if install {
-            exitCode = await HomebrewManager.install(formula: tool.formula) { logLines.append($0) }
+            exitCode = await PackageManagerRouter.install(tool: tool) { logLines.append($0) }
         } else {
-            exitCode = await HomebrewManager.uninstall(formula: tool.formula) { logLines.append($0) }
+            exitCode = await PackageManagerRouter.uninstall(tool: tool) { logLines.append($0) }
         }
 
         if exitCode != 0 {
             logLines.append("\nExited with status \(exitCode).")
         }
-        statuses[tool.id] = await HomebrewManager.status(forFormula: tool.formula)
+        statuses[tool.id] = await PackageManagerRouter.status(for: tool)
     }
 }
 
 private struct DependencyRow: View {
     let tool: ToolDefinition
-    let status: HomebrewManager.FormulaStatus?
+    let status: PackageStatus?
     let isBusy: Bool
-    let isHomebrewInstalled: Bool
+    let isManagerAvailable: Bool
     let onInstall: () async -> Void
     let onUninstall: () async -> Void
 
@@ -107,7 +121,7 @@ private struct DependencyRow: View {
                         }
                     }
                 }
-                .disabled(!isHomebrewInstalled)
+                .disabled(!isManagerAvailable)
             }
         }
         .padding(.vertical, 4)

@@ -2,7 +2,7 @@
   "id": "osxphotos",
   "displayName": "OSXPhotos",
   "summary": "Query and export photos from Apple Photos.app, including metadata, albums, and faces.",
-  "installMethod": "brew",
+  "installMethod": "pipx",
   "formula": "osxphotos",
   "homepage": "https://github.com/RhetTbull/osxphotos",
   "versionCommand": "osxphotos version",
