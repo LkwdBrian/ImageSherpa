@@ -70,5 +70,86 @@
         { "name": "crf", "label": "Quality (18=near-lossless/large, 28=smaller/lower quality)", "type": "text", "default": "28" }
       ]
     }
+  ],
+  "availableOptions": [
+    {
+      "flag": "-ss",
+      "label": "Start Time",
+      "description": "Seek to a start time before processing (HH:MM:SS).",
+      "insertText": "-ss {startTime}",
+      "suggestedFields": [
+        { "name": "startTime", "label": "Start Time (HH:MM:SS)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-t",
+      "label": "Duration",
+      "description": "Limit output to a duration in seconds (or HH:MM:SS).",
+      "insertText": "-t {duration}",
+      "suggestedFields": [
+        { "name": "duration", "label": "Duration (seconds or HH:MM:SS)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-r",
+      "label": "Frame Rate",
+      "description": "Set the output frame rate.",
+      "insertText": "-r {fps}",
+      "suggestedFields": [
+        { "name": "fps", "label": "Frame Rate", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-s",
+      "label": "Resolution",
+      "description": "Set output resolution as WxH pixels.",
+      "insertText": "-s {width}x{height}",
+      "suggestedFields": [
+        { "name": "width", "label": "Width (px)", "type": "text" },
+        { "name": "height", "label": "Height (px)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-vf scale",
+      "label": "Scale Video",
+      "description": "Resize video with ffmpeg's scale filter (WxH pixels; use -1 for a dimension to keep aspect ratio).",
+      "insertText": "-vf scale={width}:{height}",
+      "suggestedFields": [
+        { "name": "width", "label": "Scale Width (px, or -1)", "type": "text" },
+        { "name": "height", "label": "Scale Height (px, or -1)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-an",
+      "label": "Remove Audio",
+      "description": "Strip the audio track entirely.",
+      "insertText": "-an",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-vn",
+      "label": "Remove Video",
+      "description": "Strip the video track, keeping only audio.",
+      "insertText": "-vn",
+      "suggestedFields": []
+    },
+    {
+      "flag": "-b:v",
+      "label": "Video Bitrate",
+      "description": "Target video bitrate (e.g. 2M for 2 Mbps).",
+      "insertText": "-b:v {bitrate}",
+      "suggestedFields": [
+        { "name": "bitrate", "label": "Video Bitrate (e.g. 2M)", "type": "text" }
+      ]
+    },
+    {
+      "flag": "-codec:a",
+      "label": "Audio Codec",
+      "description": "Set the audio codec (e.g. aac, mp3).",
+      "insertText": "-codec:a {audioCodec}",
+      "suggestedFields": [
+        { "name": "audioCodec", "label": "Audio Codec (e.g. aac, mp3)", "type": "text" }
+      ]
+    }
   ]
 }

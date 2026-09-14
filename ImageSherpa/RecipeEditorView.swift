@@ -15,6 +15,7 @@ struct RecipeEditorView: View {
     @State private var template: String
     @State private var fields: [FieldDraft]
     @State private var validationError: String?
+    @State private var optionSearch = ""
 
     init(tool: ToolDefinition, existingRecipe: Recipe?, onSave: @escaping () -> Void) {
         self.tool = tool
@@ -36,6 +37,36 @@ struct RecipeEditorView: View {
                 Text("Use {fieldName} placeholders for each field below.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Insert a \(tool.displayName) Option") {
+                if (tool.availableOptions ?? []).isEmpty {
+                    Text("No curated options for \(tool.displayName) yet — build the template manually below.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    TextField("Search options", text: $optionSearch)
+                    ForEach(filteredOptions) { option in
+                        Button {
+                            insert(option)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text(option.label).font(.subheadline.bold())
+                                    Text(option.flag)
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text(option.description)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
             Section("Fields") {
@@ -66,6 +97,34 @@ struct RecipeEditorView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
+        }
+    }
+
+    private var filteredOptions: [ToolOption] {
+        let options = tool.availableOptions ?? []
+        guard !optionSearch.isEmpty else { return options }
+        return options.filter {
+            $0.label.localizedCaseInsensitiveContains(optionSearch)
+                || $0.flag.localizedCaseInsensitiveContains(optionSearch)
+                || $0.description.localizedCaseInsensitiveContains(optionSearch)
+        }
+    }
+
+    /// Appends a curated option's text to the template and adds any fields it needs
+    /// (skipping ones already present by name, so inserting the same option twice — or
+    /// two options that happen to share a field name — doesn't duplicate a field row).
+    private func insert(_ option: ToolOption) {
+        template = template.isEmpty ? option.insertText : template + " " + option.insertText
+
+        for suggested in option.suggestedFields ?? [] {
+            guard !fields.contains(where: { $0.name == suggested.name }) else { continue }
+            var draft = FieldDraft()
+            draft.name = suggested.name
+            draft.label = suggested.label
+            draft.type = suggested.type
+            draft.optionsText = (suggested.options ?? []).joined(separator: ", ")
+            draft.optionsCommand = suggested.optionsCommand ?? ""
+            fields.append(draft)
         }
     }
 
