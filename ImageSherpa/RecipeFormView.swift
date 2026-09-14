@@ -6,6 +6,7 @@ private struct RunLogEntry: Identifiable {
     let command: String
     var output: String
     var exitCode: Int32?
+    var needsFullDiskAccess = false
 }
 
 /// Generates a form from Recipe.fields, shows a live command preview (always visible
@@ -20,7 +21,7 @@ struct RecipeFormView: View {
     @State private var isRunning = false
     @State private var log: [RunLogEntry] = []
     @State private var dynamicOptions: [String: [String]] = [:]
-    @State private var dynamicOptionsFailed: Set<String> = []
+    @State private var dynamicOptionsFailure: [String: RecipeRunner.OptionsLoadResult] = [:]
     @State private var loadingOptions: Set<String> = []
 
     var body: some View {
@@ -74,6 +75,12 @@ struct RecipeFormView: View {
                                     .font(.caption2)
                                     .foregroundStyle(.red)
                             }
+                            if entry.needsFullDiskAccess {
+                                Button("Open Full Disk Access Settings…") {
+                                    PermissionHelp.openFullDiskAccessSettings()
+                                }
+                                .font(.caption2)
+                            }
                         }
                         .padding(.vertical, 2)
                     }
@@ -120,9 +127,9 @@ struct RecipeFormView: View {
                 Spacer()
                 ProgressView().controlSize(.small)
             }
-        } else if dynamicOptionsFailed.contains(field.name) {
+        } else if let failure = dynamicOptionsFailure[field.name] {
             VStack(alignment: .leading, spacing: 4) {
-                Label("Couldn't load options automatically — enter a value manually.", systemImage: "exclamationmark.triangle")
+                Label(failureMessage(for: failure), systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
                 HStack {
@@ -133,6 +140,12 @@ struct RecipeFormView: View {
                     TextField(field.label, text: binding(for: field))
                         .layoutPriority(1)
                     Button("Retry") { Task { await loadOptions(for: field) } }
+                }
+                if case .fullDiskAccessNeeded = failure {
+                    Button("Open Full Disk Access Settings…") {
+                        PermissionHelp.openFullDiskAccessSettings()
+                    }
+                    .font(.caption)
                 }
             }
         } else {
@@ -177,14 +190,25 @@ struct RecipeFormView: View {
     /// the picker's reload button covers the case where it does.
     private func loadOptions(for field: RecipeField) async {
         guard let command = field.optionsCommand else { return }
-        dynamicOptionsFailed.remove(field.name)
+        dynamicOptionsFailure.removeValue(forKey: field.name)
         loadingOptions.insert(field.name)
         defer { loadingOptions.remove(field.name) }
 
-        if let options = await RecipeRunner.runOptionsCommand(command) {
+        let result = await RecipeRunner.runOptionsCommand(command)
+        switch result {
+        case .success(let options):
             dynamicOptions[field.name] = options
-        } else {
-            dynamicOptionsFailed.insert(field.name)
+        case .fullDiskAccessNeeded, .failure:
+            dynamicOptionsFailure[field.name] = result
+        }
+    }
+
+    private func failureMessage(for failure: RecipeRunner.OptionsLoadResult) -> String {
+        switch failure {
+        case .fullDiskAccessNeeded:
+            return "Needs Full Disk Access to read your Photos library directly — grant it below, then Retry. You can also enter a value manually for now."
+        case .success, .failure:
+            return "Couldn't load options automatically — enter a value manually."
         }
     }
 
@@ -210,5 +234,8 @@ struct RecipeFormView: View {
             log[index].output += chunk
         }
         log[index].exitCode = exitCode
+        if exitCode != 0 && PermissionHelp.looksLikeFullDiskAccessDenial(log[index].output) {
+            log[index].needsFullDiskAccess = true
+        }
     }
 }

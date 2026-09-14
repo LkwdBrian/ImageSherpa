@@ -61,36 +61,48 @@ final class RecipeRunner {
         Bundle.main.resourceURL?.path
     }
 
+    enum OptionsLoadResult {
+        case success([String])
+        case fullDiskAccessNeeded
+        case failure
+    }
+
     /// Runs a dynamic_choice field's optionsCommand and returns its stdout split into
-    /// non-blank lines, one per option. Stderr is discarded rather than mixed in, since
-    /// noise there (warnings, progress) would otherwise show up as bogus picker entries.
-    /// Returns nil on any failure (non-zero exit, launch failure) so callers can fall back
-    /// to a plain text field per the "never block the form" rule.
-    static func runOptionsCommand(_ command: String) async -> [String]? {
+    /// non-blank lines, one per option. Stderr is captured (not mixed into the options
+    /// list — noise there would show up as bogus picker entries) only to check whether the
+    /// failure looks like a Full Disk Access denial, so the form can point at the fix
+    /// instead of a generic "couldn't load options" message. Never throws; callers fall
+    /// back to a plain text field on any failure per the "never block the form" rule.
+    static func runOptionsCommand(_ command: String) async -> OptionsLoadResult {
         await withCheckedContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/zsh")
             process.arguments = ["-l", "-c", command]
 
             let outPipe = Pipe()
+            let errPipe = Pipe()
             process.standardOutput = outPipe
-            process.standardError = Pipe()   // discarded
+            process.standardError = errPipe
 
             process.terminationHandler = { proc in
                 guard proc.terminationStatus == 0 else {
-                    continuation.resume(returning: nil)
+                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                    let errText = String(data: errData, encoding: .utf8) ?? ""
+                    let result: OptionsLoadResult = PermissionHelp.looksLikeFullDiskAccessDenial(errText)
+                        ? .fullDiskAccessNeeded : .failure
+                    continuation.resume(returning: result)
                     return
                 }
                 let data = outPipe.fileHandleForReading.readDataToEndOfFile()
                 let text = String(data: data, encoding: .utf8) ?? ""
                 let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-                continuation.resume(returning: lines.isEmpty ? nil : lines)
+                continuation.resume(returning: lines.isEmpty ? .failure : .success(lines))
             }
 
             do {
                 try process.run()
             } catch {
-                continuation.resume(returning: nil)
+                continuation.resume(returning: .failure)
             }
         }
     }
