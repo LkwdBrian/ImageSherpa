@@ -104,7 +104,7 @@ Decisions are locked. Do not suggest alternatives unless Brian explicitly reopen
 
 | Tool | Install | Recipes |
 |---|---|---|
-| osxphotos | brew | Export by album, by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
+| osxphotos | pipx | Export by album (album field is a live `dynamic_choice` picker, #15), by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
 | imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet |
 | ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video |
 | exiftool | brew | Remove GPS location only, rename by capture date, add copyright/author, geotag by decimal coordinates, export metadata to CSV |
@@ -252,9 +252,28 @@ tester.
   `HomebrewManager.installedVersion` currently parses `brew list --versions` output directly
   instead, which is more reliable for most formulae. Keep the regex field as a documented
   fallback path, don't remove it.
-- **No support yet for non-Homebrew install methods** (pip-only tools, for instance).
-  `installMethod` is a string for exactly this reason — add a parallel manager (e.g.
-  `PipManager`) rather than overloading `HomebrewManager` when this is needed.
+- **osxphotos has no Homebrew formula — it's pipx-only** (fixed in #18). It's a Python CLI
+  installed via `pipx install osxphotos`, not a compiled brew formula. `PipxManager.swift`
+  (parallel to `HomebrewManager.swift`) and `PackageManagerRouter.swift` (dispatches by
+  `tool.installMethod`) handle this; `osxphotos.json` declares `"installMethod": "pipx"`.
+  This is the template for any other pip-only tool added later — new `installMethod` value +
+  a parallel manager, not overloading `HomebrewManager`.
+- **osxphotos needs Full Disk Access, not Photos-library permission, and this cannot be
+  requested programmatically.** osxphotos reads `Photos.sqlite` directly rather than through
+  PhotoKit, so every osxphotos command (recipe runs and the `dynamic_choice` album picker
+  alike) is gated by the Full Disk Access TCC category, not `NSPhotoLibraryUsageDescription`
+  (which the app also declares, for if/when #17's thumbnail preview uses PhotoKit directly —
+  but that key does nothing for osxphotos's raw file access). Unlike
+  Photos/Camera/Microphone/Contacts, macOS has no `requestAuthorization`-style API for Full
+  Disk Access and never shows an automatic prompt — Apple deliberately requires a human to
+  add the app via System Settings → Privacy & Security → Full Disk Access → **+**, with a
+  password/Touch ID prompt, every time, for every app. It also does NOT auto-populate that
+  list after a denied attempt (unlike the other categories), so a first-time user has no way
+  to discover this on their own. `PermissionHelp.swift` detects the "Operation not permitted"
+  EPERM signature and offers a button that opens the Full Disk Access pane directly
+  (`x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`) — that's the
+  ceiling of what's automatable here; don't spend time looking for a way to trigger the
+  actual grant programmatically, there isn't one.
 - **osxphotos CLI flags referenced in recipes** (`--place`, `--person`, `--year`,
   `--query-function`) were sourced from documentation and may drift across osxphotos
   versions. Verify against `osxphotos help export` on the actual installed version before
