@@ -19,6 +19,9 @@ struct RecipeFormView: View {
     @State private var previewError: String?
     @State private var isRunning = false
     @State private var log: [RunLogEntry] = []
+    @State private var dynamicOptions: [String: [String]] = [:]
+    @State private var dynamicOptionsFailed: Set<String> = []
+    @State private var loadingOptions: Set<String> = []
 
     var body: some View {
         Form {
@@ -97,6 +100,52 @@ struct RecipeFormView: View {
                     }
                 }
             }
+        case .choice:
+            Picker(field.label, selection: binding(for: field)) {
+                Text("Select…").tag("")
+                ForEach(field.options ?? [], id: \.self) { option in
+                    Text(option).tag(option)
+                }
+            }
+        case .dynamicChoice:
+            dynamicChoiceRow(for: field)
+        }
+    }
+
+    @ViewBuilder
+    private func dynamicChoiceRow(for field: RecipeField) -> some View {
+        if loadingOptions.contains(field.name) {
+            HStack {
+                Text(field.label)
+                Spacer()
+                ProgressView().controlSize(.small)
+            }
+        } else if dynamicOptionsFailed.contains(field.name) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    TextField(field.label, text: binding(for: field))
+                    Button("Retry") { Task { await loadOptions(for: field) } }
+                }
+                Label("Couldn't load options automatically — enter a value manually.", systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        } else {
+            HStack {
+                Picker(field.label, selection: binding(for: field)) {
+                    Text("Select…").tag("")
+                    ForEach(dynamicOptions[field.name] ?? [], id: \.self) { option in
+                        Text(option).tag(option)
+                    }
+                }
+                Button {
+                    Task { await loadOptions(for: field) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Reload options")
+            }
         }
     }
 
@@ -112,6 +161,26 @@ struct RecipeFormView: View {
             values[field.name] = field.default ?? ""
         }
         updatePreview()
+
+        for field in recipe.fields where field.type == .dynamicChoice {
+            Task { await loadOptions(for: field) }
+        }
+    }
+
+    /// Loads a dynamic_choice field's options once per form session (not re-run per
+    /// keystroke) since the underlying data (e.g. Photos albums) rarely changes mid-session;
+    /// the picker's reload button covers the case where it does.
+    private func loadOptions(for field: RecipeField) async {
+        guard let command = field.optionsCommand else { return }
+        dynamicOptionsFailed.remove(field.name)
+        loadingOptions.insert(field.name)
+        defer { loadingOptions.remove(field.name) }
+
+        if let options = await RecipeRunner.runOptionsCommand(command) {
+            dynamicOptions[field.name] = options
+        } else {
+            dynamicOptionsFailed.insert(field.name)
+        }
     }
 
     private func updatePreview() {

@@ -46,7 +46,7 @@ final class RecipeRunner {
             // keywords, folder paths can all contain spaces). Leave bare "text" tokens
             // (widths, percentages, extensions, dates) unquoted so glob patterns like
             // *.jpg still expand correctly and numeric values pass through cleanly.
-            let needsQuoting = [RecipeField.FieldType.folder, .file, .quotedText].contains(field.type)
+            let needsQuoting = [RecipeField.FieldType.folder, .file, .quotedText, .choice, .dynamicChoice].contains(field.type)
             let safeValue = needsQuoting ? "\"\(rawValue)\"" : rawValue
             command = command.replacingOccurrences(of: token, with: safeValue)
         }
@@ -59,6 +59,40 @@ final class RecipeRunner {
     /// same caveat on Registry/).
     private static func bundledScriptsDirectory() -> String? {
         Bundle.main.resourceURL?.path
+    }
+
+    /// Runs a dynamic_choice field's optionsCommand and returns its stdout split into
+    /// non-blank lines, one per option. Stderr is discarded rather than mixed in, since
+    /// noise there (warnings, progress) would otherwise show up as bogus picker entries.
+    /// Returns nil on any failure (non-zero exit, launch failure) so callers can fall back
+    /// to a plain text field per the "never block the form" rule.
+    static func runOptionsCommand(_ command: String) async -> [String]? {
+        await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-l", "-c", command]
+
+            let outPipe = Pipe()
+            process.standardOutput = outPipe
+            process.standardError = Pipe()   // discarded
+
+            process.terminationHandler = { proc in
+                guard proc.terminationStatus == 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let data = outPipe.fileHandleForReading.readDataToEndOfFile()
+                let text = String(data: data, encoding: .utf8) ?? ""
+                let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                continuation.resume(returning: lines.isEmpty ? nil : lines)
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(returning: nil)
+            }
+        }
     }
 
     /// Runs the built command, streaming stdout/stderr lines to the handler as they arrive.
