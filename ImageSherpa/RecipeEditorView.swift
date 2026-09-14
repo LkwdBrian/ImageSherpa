@@ -69,15 +69,21 @@ struct RecipeEditorView: View {
                 }
             }
 
-            Section("Fields") {
+            Section {
                 ForEach($fields) { $field in
-                    FieldDraftRow(field: $field)
+                    FieldDraftRow(field: $field) {
+                        insertPlaceholder(for: field)
+                    }
                 }
                 .onDelete { fields.remove(atOffsets: $0) }
 
                 Button("Add Field") {
                     fields.append(FieldDraft())
                 }
+            } header: {
+                Text("Fields")
+            } footer: {
+                Text("For anything not covered by a curated option above: name the field, then tap Insert to drop its {placeholder} into the template. A field does nothing until its placeholder is actually in the template.")
             }
 
             if let validationError {
@@ -126,6 +132,18 @@ struct RecipeEditorView: View {
             draft.optionsCommand = suggested.optionsCommand ?? ""
             fields.append(draft)
         }
+    }
+
+    /// Appends a manually-added field's {placeholder} to the template — the same effect
+    /// "Insert a Tool Option" gets for free, but for a field the user typed by hand
+    /// instead of picking from the curated list. Without this, a field the user adds sits
+    /// unused until they separately go edit the template text to reference it, which
+    /// isn't obvious from the form alone.
+    private func insertPlaceholder(for field: FieldDraft) {
+        guard !field.name.isEmpty else { return }
+        let token = "{\(field.name)}"
+        guard !template.contains(token) else { return }
+        template = template.isEmpty ? token : template + " " + token
     }
 
     /// Validates the template against RecipeRunner.buildCommand with dummy per-field
@@ -222,12 +240,16 @@ private struct FieldDraft: Identifiable {
 
 private struct FieldDraftRow: View {
     @Binding var field: FieldDraft
+    let onInsertPlaceholder: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 TextField("Field name (used in {placeholder})", text: $field.name)
                 TextField("Label", text: $field.label)
+                Button("Insert", action: onInsertPlaceholder)
+                    .disabled(field.name.isEmpty)
+                    .help("Insert {\(field.name)} into the command template")
             }
             Picker("Type", selection: $field.type) {
                 Text("Text").tag(RecipeField.FieldType.text)
