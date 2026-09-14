@@ -59,6 +59,13 @@ struct ToolDetailView: View {
             }
         }
         .onAppear(perform: reload)
+        // ContentView renders ToolDetailView from the same switch-case position for every
+        // tool, so SwiftUI treats a tool switch as an update to the *same* view instance
+        // (same type, same position in the tree), not a teardown/recreate — onAppear only
+        // fires once and @State survives across tools. Without this, switching from
+        // ImageMagick to ffmpeg keeps showing ImageMagick's recipes (and vice versa) since
+        // `recipes` never gets recomputed for the newly selected tool.
+        .onChange(of: tool.id) { _, _ in reload() }
     }
 
     private func reload() {
