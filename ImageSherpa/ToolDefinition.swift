@@ -63,6 +63,14 @@ struct Recipe: Codable, Identifiable, Hashable {
     let description: String
     let template: String        // command string with {fieldName} placeholders
     let fields: [RecipeField]
+    /// Optional override for the affected-file preview (#16). When omitted,
+    /// RecipeRunner derives it from whatever glob suffix follows the recipe's first
+    /// folder-type field in the template — e.g. the "/*" in "{sourceFolder}/*", or "*"
+    /// when the field appears bare with no suffix at all, as exiftool's recipes do since
+    /// exiftool itself processes every file in the directory. Can reference other field
+    /// placeholders (e.g. "*.{extension}"), which are substituted with the form's current
+    /// values the same way the command template is.
+    let previewGlob: String?
 }
 
 struct RecipeField: Codable, Identifiable, Hashable {

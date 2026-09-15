@@ -18,6 +18,7 @@ struct RecipeFormView: View {
     @State private var values: [String: String] = [:]
     @State private var preview: String = ""
     @State private var previewError: String?
+    @State private var folderPreview: RecipeRunner.FolderPreview?
     @State private var isRunning = false
     @State private var log: [RunLogEntry] = []
     @State private var dynamicOptions: [String: [String]] = [:]
@@ -31,6 +32,18 @@ struct RecipeFormView: View {
 
                 ForEach(recipe.fields) { field in
                     fieldRow(for: field)
+                }
+            }
+
+            if let folderPreview {
+                Section("Files Affected") {
+                    if folderPreview.folderExists {
+                        Text("This will affect \(folderPreview.count) file\(folderPreview.count == 1 ? "" : "s") in \(folderPreview.displayPath)")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Label("Folder not found: \(folderPreview.displayPath)", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
 
@@ -90,7 +103,10 @@ struct RecipeFormView: View {
         .formStyle(.grouped)
         .navigationTitle(recipe.label)
         .onAppear(perform: seedDefaults)
-        .onChange(of: values) { _, _ in updatePreview() }
+        .onChange(of: values) { _, _ in
+            updatePreview()
+            updateFolderPreview()
+        }
     }
 
     @ViewBuilder
@@ -179,6 +195,7 @@ struct RecipeFormView: View {
             values[field.name] = field.default ?? ""
         }
         updatePreview()
+        updateFolderPreview()
 
         for field in recipe.fields where field.type == .dynamicChoice {
             Task { await loadOptions(for: field) }
@@ -220,6 +237,14 @@ struct RecipeFormView: View {
             preview = ""
             previewError = error.localizedDescription
         }
+    }
+
+    private func updateFolderPreview() {
+        guard let folderField = recipe.fields.first(where: { $0.type == .folder }) else {
+            folderPreview = nil
+            return
+        }
+        folderPreview = RecipeRunner.folderPreview(for: recipe, folderField: folderField, values: values)
     }
 
     private func run() async {
