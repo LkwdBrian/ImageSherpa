@@ -20,6 +20,17 @@
       ]
     },
     {
+      "id": "resize_single_file",
+      "label": "Resize (Single File)",
+      "description": "Resize one image file and save the result to a new file, leaving the original untouched.",
+      "template": "magick {sourceFile} -resize {size} {destinationFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
+        { "name": "destinationFile", "label": "Destination File", "type": "file" },
+        { "name": "size", "label": "Resize To (e.g. 50% or 1920x1080)", "type": "text", "default": "50%" }
+      ]
+    },
+    {
       "id": "convert_format",
       "label": "Convert Format",
       "description": "Convert every image in a folder to a different file format.",
@@ -28,6 +39,16 @@
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
         { "name": "format", "label": "Target Format (e.g. png, jpg, webp)", "type": "text", "default": "png" }
+      ]
+    },
+    {
+      "id": "convert_format_single_file",
+      "label": "Convert Format (Single File)",
+      "description": "Convert one image file to a different file format. Format is inferred from the destination file's extension.",
+      "template": "magick {sourceFile} {destinationFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
+        { "name": "destinationFile", "label": "Destination File (e.g. output.png)", "type": "file" }
       ]
     },
     {
@@ -43,6 +64,18 @@
       ]
     },
     {
+      "id": "add_watermark_single_file",
+      "label": "Add Watermark (Single File)",
+      "description": "Overlay a watermark image onto one image file.",
+      "template": "magick {sourceFile} {watermarkImage} -gravity {gravity} -composite {destinationFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
+        { "name": "watermarkImage", "label": "Watermark Image", "type": "file" },
+        { "name": "gravity", "label": "Position (e.g. southeast, center, northwest)", "type": "text", "default": "southeast" },
+        { "name": "destinationFile", "label": "Destination File", "type": "file" }
+      ]
+    },
+    {
       "id": "strip_metadata",
       "label": "Strip Metadata",
       "description": "Remove EXIF/IPTC/XMP metadata from every image in a folder, useful before sharing photos publicly.",
@@ -50,6 +83,16 @@
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" }
+      ]
+    },
+    {
+      "id": "strip_metadata_single_file",
+      "label": "Strip Metadata (Single File)",
+      "description": "Remove EXIF/IPTC/XMP metadata from one image file, useful before sharing a photo publicly.",
+      "template": "magick {sourceFile} -strip {destinationFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
+        { "name": "destinationFile", "label": "Destination File", "type": "file" }
       ]
     },
     {

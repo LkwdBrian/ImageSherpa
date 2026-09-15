@@ -18,12 +18,30 @@
       ]
     },
     {
+      "id": "remove_gps_single_file",
+      "label": "Remove GPS Location (Single File)",
+      "description": "Strip only GPS location data from one image file, leaving other metadata (camera info, date, copyright) intact.",
+      "template": "exiftool -overwrite_original -gps:all= {sourceFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" }
+      ]
+    },
+    {
       "id": "batch_rename_by_date",
       "label": "Rename by Capture Date",
       "description": "Rename every image in a folder to its original capture date/time. Files with an identical timestamp get a numeric suffix instead of colliding.",
       "template": "exiftool \"-FileName<DateTimeOriginal\" -d \"%Y-%m-%d_%H%M%S%%-c.%%e\" {sourceFolder}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" }
+      ]
+    },
+    {
+      "id": "rename_by_date_single_file",
+      "label": "Rename by Capture Date (Single File)",
+      "description": "Rename one image file to its original capture date/time.",
+      "template": "exiftool \"-FileName<DateTimeOriginal\" -d \"%Y-%m-%d_%H%M%S%%-c.%%e\" {sourceFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" }
       ]
     },
     {
@@ -38,12 +56,34 @@
       ]
     },
     {
+      "id": "add_copyright_single_file",
+      "label": "Add Copyright & Author (Single File)",
+      "description": "Tag one image file with an author name and copyright notice.",
+      "template": "exiftool -overwrite_original -Artist={artist} -Copyright={copyright} {sourceFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
+        { "name": "artist", "label": "Author/Artist Name", "type": "quoted_text" },
+        { "name": "copyright", "label": "Copyright Notice", "type": "quoted_text" }
+      ]
+    },
+    {
       "id": "geotag",
       "label": "Add GPS Location",
       "description": "Tag every image in a folder with a GPS coordinate (decimal degrees; use a negative value for South/West).",
       "template": "exiftool -overwrite_original -GPSLatitude={latitude} -GPSLongitude={longitude} -GPSLatitudeRef={latitude} -GPSLongitudeRef={longitude} {sourceFolder}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
+        { "name": "latitude", "label": "Latitude (e.g. 40.7484 or -33.8688)", "type": "text" },
+        { "name": "longitude", "label": "Longitude (e.g. -73.9857 or 151.2093)", "type": "text" }
+      ]
+    },
+    {
+      "id": "geotag_single_file",
+      "label": "Add GPS Location (Single File)",
+      "description": "Tag one image file with a GPS coordinate (decimal degrees; use a negative value for South/West).",
+      "template": "exiftool -overwrite_original -GPSLatitude={latitude} -GPSLongitude={longitude} -GPSLatitudeRef={latitude} -GPSLongitudeRef={longitude} {sourceFile}",
+      "fields": [
+        { "name": "sourceFile", "label": "Source File", "type": "file" },
         { "name": "latitude", "label": "Latitude (e.g. 40.7484 or -33.8688)", "type": "text" },
         { "name": "longitude", "label": "Longitude (e.g. -73.9857 or 151.2093)", "type": "text" }
       ]
