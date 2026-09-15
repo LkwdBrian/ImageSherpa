@@ -105,9 +105,9 @@ Decisions are locked. Do not suggest alternatives unless Brian explicitly reopen
 | Tool | Install | Recipes |
 |---|---|---|
 | osxphotos | pipx | Export by album (album field is a live `dynamic_choice` picker, #15), by keyword, by date range, by person; find duplicates; list albums; Best Photos of a Place/Person/Year (score-based, via `Scripts/photo_scoring.py`) |
-| imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet |
-| ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video |
-| exiftool | brew | Remove GPS location only, rename by capture date, add copyright/author, geotag by decimal coordinates, export metadata to CSV |
+| imagemagick | brew | Batch resize, convert format, add watermark, strip metadata, contact sheet — resize/convert/watermark/strip each also have a single-file variant (#14) |
+| ffmpeg | brew | Convert video format, extract frames from video, video to GIF, build video from image sequence (timelapse), compress video (all already single-file, see `inputFile`) |
+| exiftool | brew | Remove GPS location only, rename by capture date, add copyright/author, geotag by decimal coordinates, export metadata to CSV — remove-GPS/rename/copyright/geotag each also have a single-file variant (#14) |
 
 All four tools in the confirmed image/photo scope (see App Overview) are now registered.
 
@@ -325,6 +325,22 @@ tester.
   isn't cosmetic: without it, two photos sharing the same capture timestamp to the second
   (burst shots, batch imports) collide on the same target filename and the whole run exits 1
   partway through, having renamed some files but not others.
+- **Single-file mode (#14) is implemented as a duplicate sibling recipe, not a folder/file
+  toggle on one recipe.** Resolves the open question in #14's Notes: a toggle would need
+  `RecipeRunner`/`RecipeFormView` to conditionally swap template text at render time, which
+  works against "always show the user the real command before running it" (the preview would
+  need its own toggle-aware logic instead of just interpolating `recipe.template` directly)
+  and against keeping tool-specific behavior out of Swift. A plain sibling recipe (e.g.
+  `resize_single_file` next to `batch_resize`) is pure registry data and needs zero code
+  changes. Two sub-cases ended up looking different: ImageMagick's batch recipes use a shell
+  `for f in {sourceFolder}/*; do ... done` loop, so the single-file template is genuinely
+  different (a direct `magick {sourceFile} ... {destinationFile}` call, no loop). ExifTool's
+  recipes never glob — `exiftool ... {sourceFolder}` already accepts a bare file path with
+  identical behavior — so its single-file variants are the *same* template with only the
+  `sourceFolder` (type `folder`) field swapped for `sourceFile` (type `file`), which matters
+  only because `RecipeField.type` drives whether `FolderPicker` lets the user pick a file
+  vs. a directory. Follow whichever pattern matches a new tool's recipe: check whether its
+  template loops over a glob before assuming a field-type swap is sufficient.
 - **exiftool's `-GPSLatitudeRef`/`-GPSLongitudeRef` can take the same signed decimal value as
   `-GPSLatitude`/`-GPSLongitude`** rather than needing separate N/S/E/W tag values — exiftool
   derives the hemisphere from the sign. This is what lets the `geotag` recipe use only 2
