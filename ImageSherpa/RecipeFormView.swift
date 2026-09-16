@@ -1,5 +1,16 @@
 import SwiftUI
 
+/// State of the osxphotos thumbnail preview (#17). Not auto-run on every keystroke like
+/// FolderPreview — the underlying query shells out to osxphotos, which is far more
+/// expensive than a local FileManager glob, so it's triggered explicitly via a button.
+private enum PhotoPreviewLoadState {
+    case idle
+    case loading
+    case loaded(paths: [String], thumbnails: [String: NSImage])
+    case fullDiskAccessNeeded
+    case failure(String)
+}
+
 private struct RunLogEntry: Identifiable {
     let id = UUID()
     let timestamp: Date
@@ -19,6 +30,7 @@ struct RecipeFormView: View {
     @State private var preview: String = ""
     @State private var previewError: String?
     @State private var folderPreview: RecipeRunner.FolderPreview?
+    @State private var photoPreviewState: PhotoPreviewLoadState = .idle
     @State private var isRunning = false
     @State private var log: [RunLogEntry] = []
     @State private var dynamicOptions: [String: [String]] = [:]
@@ -64,6 +76,12 @@ struct RecipeFormView: View {
                         Label("Folder not found: \(folderPreview.displayPath)", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
+                }
+            }
+
+            if recipe.previewQuery != nil {
+                Section("Matching Photos") {
+                    photoPreviewContent
                 }
             }
 
@@ -126,6 +144,12 @@ struct RecipeFormView: View {
         .onChange(of: values) { _, _ in
             updatePreview()
             updateFolderPreview()
+            // Field values changed (e.g. a different album picked) — the last query result
+            // no longer reflects the form, so drop it rather than show a stale thumbnail
+            // grid next to an unrelated command preview. Idle re-prompts a fresh Preview tap.
+            if case .idle = photoPreviewState {} else {
+                photoPreviewState = .idle
+            }
         }
     }
 
@@ -200,6 +224,82 @@ struct RecipeFormView: View {
                 .buttonStyle(.borderless)
                 .help("Reload options")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreviewContent: some View {
+        switch photoPreviewState {
+        case .idle:
+            Button("Preview Matching Photos") { Task { await loadPhotoPreview() } }
+        case .loading:
+            HStack {
+                ProgressView().controlSize(.small)
+                Text("Running query…").foregroundStyle(.secondary)
+            }
+        case .loaded(let paths, let thumbnails):
+            Text("\(paths.count) matching photo\(paths.count == 1 ? "" : "s")")
+                .foregroundStyle(.secondary)
+            if !paths.isEmpty {
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 8) {
+                        // Cap rendered thumbnails the same way the folder-glob preview caps
+                        // its file list — the count above already reflects the full total.
+                        ForEach(paths.prefix(50), id: \.self) { path in
+                            if let image = thumbnails[path] {
+                                Image(nsImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 80, height: 80)
+                                    .clipped()
+                                    .cornerRadius(4)
+                            } else {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(.quaternary)
+                                    .frame(width: 80, height: 80)
+                            }
+                        }
+                    }
+                }
+            }
+            Button("Refresh") { Task { await loadPhotoPreview() } }
+        case .fullDiskAccessNeeded:
+            Label("Needs Full Disk Access to read your Photos library directly — grant it below, then Retry.", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Button("Open Full Disk Access Settings…") {
+                PermissionHelp.openFullDiskAccessSettings()
+            }
+            .font(.caption)
+            Button("Retry") { Task { await loadPhotoPreview() } }
+        case .failure(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Button("Retry") { Task { await loadPhotoPreview() } }
+        }
+    }
+
+    private func loadPhotoPreview() async {
+        photoPreviewState = .loading
+        let result = await RecipeRunner.photoPreview(for: recipe, values: values)
+        switch result {
+        case .success(let paths):
+            let limited = Array(paths.prefix(50))
+            let thumbnails = await Task.detached(priority: .userInitiated) {
+                var loaded: [String: NSImage] = [:]
+                for path in limited {
+                    if let image = PhotoThumbnailLoader.load(path: path) {
+                        loaded[path] = image
+                    }
+                }
+                return loaded
+            }.value
+            photoPreviewState = .loaded(paths: paths, thumbnails: thumbnails)
+        case .fullDiskAccessNeeded:
+            photoPreviewState = .fullDiskAccessNeeded
+        case .failure(let message):
+            photoPreviewState = .failure(message)
         }
     }
 

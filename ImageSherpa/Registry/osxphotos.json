@@ -14,6 +14,7 @@
       "label": "Export Photos by Album",
       "description": "Export all photos in a specific album to a folder.",
       "template": "osxphotos export {destination} --album {album} --update",
+      "previewQuery": "osxphotos query --album {album} --json",
       "fields": [
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
         {
@@ -29,6 +30,7 @@
       "label": "Export Photos by Keyword",
       "description": "Export all photos tagged with a specific keyword.",
       "template": "osxphotos export {destination} --keyword {keyword} --update",
+      "previewQuery": "osxphotos query --keyword {keyword} --json",
       "fields": [
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
         { "name": "keyword", "label": "Keyword", "type": "quoted_text" }

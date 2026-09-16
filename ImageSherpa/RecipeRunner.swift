@@ -167,6 +167,75 @@ final class RecipeRunner {
         return glob.isEmpty ? "*" : glob
     }
 
+    /// Result of resolving an osxphotos recipe's thumbnail preview (#17) by running its
+    /// `previewQuery` read-only equivalent instead of actually exporting.
+    enum PhotoPreviewResult {
+        case success([String])
+        case fullDiskAccessNeeded
+        case failure(String)
+    }
+
+    /// Runs `recipe.previewQuery` (with the same {fieldName} substitution as buildCommand)
+    /// and extracts the `path` of every matching photo from its `--json` output, so
+    /// RecipeFormView can show a thumbnail grid before the user commits to the actual
+    /// export. `path` is osxphotos's on-disk original path; it's `null` for photos not
+    /// downloaded locally (iCloud-only originals), so those are filtered out here rather
+    /// than passed on as unloadable thumbnails.
+    static func photoPreview(for recipe: Recipe, values: [String: String]) async -> PhotoPreviewResult {
+        guard let queryTemplate = recipe.previewQuery else {
+            return .failure("No preview available for this recipe.")
+        }
+
+        var command = queryTemplate
+        for field in recipe.fields {
+            let token = "{\(field.name)}"
+            guard command.contains(token) else { continue }
+            let rawValue = values[field.name] ?? field.default ?? ""
+            guard !rawValue.isEmpty else {
+                return .failure("Fill in \"\(field.label)\" to preview matching photos.")
+            }
+            let needsQuoting = [RecipeField.FieldType.folder, .file, .quotedText, .choice, .dynamicChoice].contains(field.type)
+            let safeValue = needsQuoting ? "\"\(rawValue)\"" : rawValue
+            command = command.replacingOccurrences(of: token, with: safeValue)
+        }
+
+        return await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            process.arguments = ["-l", "-c", withGuaranteedPath(command)]
+
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            process.standardOutput = outPipe
+            process.standardError = errPipe
+
+            process.terminationHandler = { proc in
+                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+                let photos = (try? JSONSerialization.jsonObject(with: outData)) as? [[String: Any]]
+
+                guard proc.terminationStatus == 0, let photos else {
+                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                    let errText = String(data: errData, encoding: .utf8) ?? ""
+                    let result: PhotoPreviewResult = PermissionHelp.looksLikeFullDiskAccessDenial(errText)
+                        ? .fullDiskAccessNeeded
+                        : .failure("Couldn't run the preview query.")
+                    continuation.resume(returning: result)
+                    return
+                }
+
+                let paths = photos.compactMap { $0["path"] as? String }
+                    .filter { FileManager.default.fileExists(atPath: $0) }
+                continuation.resume(returning: .success(paths))
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(returning: .failure("Failed to launch: \(error.localizedDescription)"))
+            }
+        }
+    }
+
     enum OptionsLoadResult {
         case success([String])
         case fullDiskAccessNeeded

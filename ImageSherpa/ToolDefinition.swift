@@ -71,6 +71,14 @@ struct Recipe: Codable, Identifiable, Hashable {
     /// placeholders (e.g. "*.{extension}"), which are substituted with the form's current
     /// values the same way the command template is.
     let previewGlob: String?
+    /// Optional read-only osxphotos query equivalent of this recipe's export template,
+    /// used for the thumbnail preview (#17) — e.g. "osxphotos query --album {album} --json"
+    /// for the "osxphotos export ... --album {album}" template. Per-recipe rather than a
+    /// single generic mechanism, since the query flag mapping isn't mechanically derivable
+    /// from an export template (unlike previewGlob's folder-suffix derivation). Placeholder
+    /// substitution reuses the same {fieldName} tokens as template. Only recipes that back
+    /// onto osxphotos need this; every other tool's recipes simply omit it.
+    let previewQuery: String?
 }
 
 struct RecipeField: Codable, Identifiable, Hashable {

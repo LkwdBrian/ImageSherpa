@@ -152,7 +152,7 @@ struct RecipeEditorView: View {
     private func save() {
         let recipeFields = fields.map { $0.toRecipeField() }
         let id = existingRecipe?.id ?? Self.slug(from: label)
-        let recipe = Recipe(id: id, label: label, description: description, template: template, fields: recipeFields, previewGlob: nil)
+        let recipe = Recipe(id: id, label: label, description: description, template: template, fields: recipeFields, previewGlob: nil, previewQuery: nil)
 
         let dummyValues = Dictionary(uniqueKeysWithValues: recipeFields.map { ($0.name, dummyValue(for: $0)) })
         do {
