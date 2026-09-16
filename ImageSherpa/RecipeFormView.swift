@@ -50,11 +50,13 @@ struct RecipeFormView: View {
                                     Text(name)
                                         .font(.system(.caption, design: .monospaced))
                                         .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                                 if folderPreview.fileNames.count > 200 {
                                     Text("…and \(folderPreview.fileNames.count - 200) more")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }

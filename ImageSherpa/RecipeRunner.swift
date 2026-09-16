@@ -103,7 +103,11 @@ final class RecipeRunner {
         }
 
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: expandedPath)) ?? []
-        let matches = contents.filter { fnmatch(glob, $0, 0) == 0 }.sorted()
+        // FNM_PERIOD makes "*" behave like an actual shell glob (which doesn't match
+        // leading-dot files, e.g. .DS_Store, unless the pattern itself starts with a dot)
+        // — matches what {sourceFolder}/* actually expands to in the imagemagick recipes'
+        // for-loops, and is the sane default for exiftool's bare {sourceFolder} too.
+        let matches = contents.filter { fnmatch(glob, $0, FNM_PERIOD) == 0 }.sorted()
         return FolderPreview(fileNames: matches, displayPath: rawPath, folderExists: true)
     }
 
