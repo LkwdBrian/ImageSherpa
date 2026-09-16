@@ -40,6 +40,24 @@ struct RecipeFormView: View {
                     if folderPreview.folderExists {
                         Text("This will affect \(folderPreview.count) file\(folderPreview.count == 1 ? "" : "s") in \(folderPreview.displayPath)")
                             .foregroundStyle(.secondary)
+
+                        if !folderPreview.fileNames.isEmpty {
+                            DisclosureGroup("Show files") {
+                                // Cap the rendered list so a folder with thousands of
+                                // files doesn't stall the form — the count above already
+                                // covers the full total either way.
+                                ForEach(folderPreview.fileNames.prefix(200), id: \.self) { name in
+                                    Text(name)
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                                if folderPreview.fileNames.count > 200 {
+                                    Text("…and \(folderPreview.fileNames.count - 200) more")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     } else {
                         Label("Folder not found: \(folderPreview.displayPath)", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)

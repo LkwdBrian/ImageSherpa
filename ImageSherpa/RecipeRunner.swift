@@ -79,9 +79,10 @@ final class RecipeRunner {
 
     /// Result of resolving a folder-based recipe's affected-file preview (#16).
     struct FolderPreview {
-        let count: Int
+        let fileNames: [String]
         let displayPath: String
         let folderExists: Bool
+        var count: Int { fileNames.count }
     }
 
     /// Resolves which files a folder-type field's glob will match, purely via FileManager
@@ -98,12 +99,12 @@ final class RecipeRunner {
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return FolderPreview(count: 0, displayPath: rawPath, folderExists: false)
+            return FolderPreview(fileNames: [], displayPath: rawPath, folderExists: false)
         }
 
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: expandedPath)) ?? []
-        let matchCount = contents.filter { fnmatch(glob, $0, 0) == 0 }.count
-        return FolderPreview(count: matchCount, displayPath: rawPath, folderExists: true)
+        let matches = contents.filter { fnmatch(glob, $0, 0) == 0 }.sorted()
+        return FolderPreview(fileNames: matches, displayPath: rawPath, folderExists: true)
     }
 
     /// Prefers an explicit `previewGlob` override; otherwise derives the glob from
