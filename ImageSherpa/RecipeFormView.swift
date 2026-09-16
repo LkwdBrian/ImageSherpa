@@ -6,7 +6,7 @@ import SwiftUI
 private enum PhotoPreviewLoadState {
     case idle
     case loading
-    case loaded(paths: [String], thumbnails: [String: NSImage], thumbnailsNeedFullDiskAccess: Bool)
+    case loaded(paths: [String], thumbnails: [String: PhotoThumbnailLoader.Result], thumbnailsNeedFullDiskAccess: Bool)
     case fullDiskAccessNeeded
     case failure(String)
 }
@@ -253,24 +253,14 @@ struct RecipeFormView: View {
                 .font(.caption)
             }
             if !paths.isEmpty {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 8) {
-                        // Cap rendered thumbnails the same way the folder-glob preview caps
-                        // its file list — the count above already reflects the full total.
-                        ForEach(paths.prefix(50), id: \.self) { path in
-                            if let image = thumbnails[path] {
-                                Image(nsImage: image)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 80, height: 80)
-                                    .clipped()
-                                    .cornerRadius(4)
-                            } else {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(.quaternary)
-                                    .frame(width: 80, height: 80)
-                            }
-                        }
+                // Adaptive columns wrap to fill the form's width and grow downward with the
+                // page, instead of a fixed-row layout that forces horizontal scrolling to
+                // see photos past the first screenful.
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80), spacing: 8)], spacing: 8) {
+                    // Cap rendered thumbnails the same way the folder-glob preview caps its
+                    // file list — the count above already reflects the full total.
+                    ForEach(paths.prefix(50), id: \.self) { path in
+                        thumbnailCell(for: path, in: thumbnails)
                     }
                 }
             }
@@ -292,6 +282,35 @@ struct RecipeFormView: View {
         }
     }
 
+    @ViewBuilder
+    private func thumbnailCell(for path: String, in thumbnails: [String: PhotoThumbnailLoader.Result]) -> some View {
+        switch thumbnails[path] {
+        case .image(let image):
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 80, height: 80)
+                .clipped()
+                .cornerRadius(4)
+        case .unavailable(let reason):
+            // A placeholder alone looked like a bug ("why is this box empty?"); the icon +
+            // tooltip tells the user this specific item is expected to have no preview
+            // (video, RAW ImageIO can't decode, etc.) rather than something broken.
+            RoundedRectangle(cornerRadius: 4)
+                .fill(.quaternary)
+                .frame(width: 80, height: 80)
+                .overlay {
+                    Image(systemName: reason.symbolName)
+                        .foregroundStyle(.secondary)
+                }
+                .help(reason.label)
+        case nil:
+            RoundedRectangle(cornerRadius: 4)
+                .fill(.quaternary)
+                .frame(width: 80, height: 80)
+        }
+    }
+
     private func loadPhotoPreview() async {
         photoPreviewState = .loading
         let result = await RecipeRunner.photoPreview(for: recipe, values: values)
@@ -299,16 +318,13 @@ struct RecipeFormView: View {
         case .success(let paths):
             let limited = Array(paths.prefix(50))
             let (thumbnails, needsFullDiskAccess) = await Task.detached(priority: .userInitiated) {
-                var loaded: [String: NSImage] = [:]
+                var loaded: [String: PhotoThumbnailLoader.Result] = [:]
                 var permissionDenied = false
                 for path in limited {
-                    switch PhotoThumbnailLoader.load(path: path) {
-                    case .image(let image):
-                        loaded[path] = image
-                    case .permissionDenied:
+                    let result = PhotoThumbnailLoader.load(path: path)
+                    loaded[path] = result
+                    if case .unavailable(.permissionDenied) = result {
                         permissionDenied = true
-                    case .failure:
-                        break
                     }
                 }
                 return (loaded, permissionDenied)
