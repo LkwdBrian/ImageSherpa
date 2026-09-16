@@ -209,12 +209,33 @@ final class RecipeRunner {
             process.standardOutput = outPipe
             process.standardError = errPipe
 
+            // Drain both pipes concurrently while the process runs, not after it exits.
+            // osxphotos --json output includes full per-photo metadata (EXIF, place, album
+            // membership, ...) and can exceed the ~64KB kernel pipe buffer for even a small
+            // album. Reading only in terminationHandler (as buildCommand's caller does
+            // elsewhere) deadlocks in that case: the child blocks on write() waiting for the
+            // pipe to drain, while we block on the process exiting before we read — neither
+            // side ever proceeds, and the preview spins forever instead of erroring.
+            let readQueue = DispatchQueue(label: "photoPreview.pipeReader")
+            var outData = Data()
+            var errData = Data()
+            let group = DispatchGroup()
+            group.enter()
+            readQueue.async {
+                outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+                group.leave()
+            }
+            group.enter()
+            readQueue.async {
+                errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+                group.leave()
+            }
+
             process.terminationHandler = { proc in
-                let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+                group.wait()
                 let photos = (try? JSONSerialization.jsonObject(with: outData)) as? [[String: Any]]
 
                 guard proc.terminationStatus == 0, let photos else {
-                    let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
                     let errText = String(data: errData, encoding: .utf8) ?? ""
                     let result: PhotoPreviewResult = PermissionHelp.looksLikeFullDiskAccessDenial(errText)
                         ? .fullDiskAccessNeeded
