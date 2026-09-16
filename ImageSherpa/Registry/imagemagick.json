@@ -12,7 +12,7 @@
       "id": "batch_resize",
       "label": "Batch Resize",
       "description": "Resize every image in a folder and save the results to a new folder, leaving the originals untouched.",
-      "template": "for f in {sourceFolder}/*; do magick \"$f\" -resize {size} {destination}/\"$(basename \"$f\")\"; done",
+      "template": "setopt nocaseglob nullglob 2>/dev/null; for f in {sourceFolder}/*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}; do magick \"$f\" -resize {size} {destination}/\"$(basename \"$f\")\"; done",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
@@ -34,7 +34,7 @@
       "id": "convert_format",
       "label": "Convert Format",
       "description": "Convert every image in a folder to a different file format.",
-      "template": "for f in {sourceFolder}/*; do magick \"$f\" {destination}/\"$(basename \"${f%.*}\").{format}\"; done",
+      "template": "setopt nocaseglob nullglob 2>/dev/null; for f in {sourceFolder}/*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}; do magick \"$f\" {destination}/\"$(basename \"${f%.*}\").{format}\"; done",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
@@ -55,7 +55,7 @@
       "id": "add_watermark",
       "label": "Add Watermark",
       "description": "Overlay a watermark image onto every image in a folder.",
-      "template": "for f in {sourceFolder}/*; do magick \"$f\" {watermarkImage} -gravity {gravity} -composite {destination}/\"$(basename \"$f\")\"; done",
+      "template": "setopt nocaseglob nullglob 2>/dev/null; for f in {sourceFolder}/*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}; do magick \"$f\" {watermarkImage} -gravity {gravity} -composite {destination}/\"$(basename \"$f\")\"; done",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" },
@@ -79,7 +79,7 @@
       "id": "strip_metadata",
       "label": "Strip Metadata",
       "description": "Remove EXIF/IPTC/XMP metadata from every image in a folder, useful before sharing photos publicly.",
-      "template": "for f in {sourceFolder}/*; do magick \"$f\" -strip {destination}/\"$(basename \"$f\")\"; done",
+      "template": "setopt nocaseglob nullglob 2>/dev/null; for f in {sourceFolder}/*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}; do magick \"$f\" -strip {destination}/\"$(basename \"$f\")\"; done",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" }
@@ -99,7 +99,7 @@
       "id": "contact_sheet",
       "label": "Contact Sheet",
       "description": "Build a single contact-sheet image tiling thumbnails of every image in a folder.",
-      "template": "magick montage {sourceFolder}/*.{extension} -font /System/Library/Fonts/Helvetica.ttc -tile {columns}x -geometry +5+5 {destination}/contact_sheet.jpg",
+      "template": "setopt nocaseglob nullglob 2>/dev/null; magick montage {sourceFolder}/*.{extension} -font /System/Library/Fonts/Helvetica.ttc -tile {columns}x -geometry +5+5 {destination}/contact_sheet.jpg",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "extension", "label": "File Extension (e.g. jpg, png)", "type": "text", "default": "jpg" },

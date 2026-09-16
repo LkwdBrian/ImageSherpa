@@ -106,8 +106,15 @@ final class RecipeRunner {
         // FNM_PERIOD makes "*" behave like an actual shell glob (which doesn't match
         // leading-dot files, e.g. .DS_Store, unless the pattern itself starts with a dot)
         // — matches what {sourceFolder}/* actually expands to in the imagemagick recipes'
-        // for-loops, and is the sane default for exiftool's bare {sourceFolder} too.
-        let matches = contents.filter { fnmatch(glob, $0, FNM_PERIOD) == 0 }.sorted()
+        // for-loops. FNM_CASEFOLD mirrors the `nocaseglob` those same for-loops set (and
+        // exiftool's own case-insensitive -ext matching), so e.g. "IMG_1.JPG" previews the
+        // same as it will actually be processed. fnmatch itself has no concept of shell
+        // brace alternation ("*.{jpg,png}"), unlike the zsh for-loops that actually run the
+        // command, so that has to be expanded into separate patterns first.
+        let patterns = expandBraceAlternatives(glob)
+        let matches = contents.filter { name in
+            patterns.contains { fnmatch($0, name, FNM_PERIOD | FNM_CASEFOLD) == 0 }
+        }.sorted()
         return FolderPreview(fileNames: matches, displayPath: rawPath, folderExists: true)
     }
 
@@ -128,6 +135,21 @@ final class RecipeRunner {
             glob = glob.replacingOccurrences(of: token, with: resolvedValue)
         }
         return glob
+    }
+
+    /// Expands a single shell brace group ("*.{jpg,png}" -> ["*.jpg", "*.png"]) since
+    /// fnmatch, unlike the zsh for-loops that actually run the command, has no concept of
+    /// brace alternation. Only one group is ever used in practice (an extension list), so
+    /// nested/multiple groups aren't handled.
+    private static func expandBraceAlternatives(_ pattern: String) -> [String] {
+        guard let openBrace = pattern.firstIndex(of: "{"),
+              let closeBrace = pattern[openBrace...].firstIndex(of: "}") else {
+            return [pattern]
+        }
+        let prefix = pattern[pattern.startIndex..<openBrace]
+        let suffix = pattern[pattern.index(after: closeBrace)...]
+        let alternatives = pattern[pattern.index(after: openBrace)..<closeBrace].split(separator: ",", omittingEmptySubsequences: false)
+        return alternatives.map { "\(prefix)\($0)\(suffix)" }
     }
 
     private static func derivedGlobSuffix(template: String, folderFieldName: String) -> String? {
