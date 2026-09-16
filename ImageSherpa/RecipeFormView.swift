@@ -6,7 +6,7 @@ import SwiftUI
 private enum PhotoPreviewLoadState {
     case idle
     case loading
-    case loaded(paths: [String], thumbnails: [String: NSImage])
+    case loaded(paths: [String], thumbnails: [String: NSImage], thumbnailsNeedFullDiskAccess: Bool)
     case fullDiskAccessNeeded
     case failure(String)
 }
@@ -237,9 +237,21 @@ struct RecipeFormView: View {
                 ProgressView().controlSize(.small)
                 Text("Running query…").foregroundStyle(.secondary)
             }
-        case .loaded(let paths, let thumbnails):
+        case .loaded(let paths, let thumbnails, let thumbnailsNeedFullDiskAccess):
             Text("\(paths.count) matching photo\(paths.count == 1 ? "" : "s")")
                 .foregroundStyle(.secondary)
+            if thumbnailsNeedFullDiskAccess {
+                // The query succeeded (osxphotos already has its own Full Disk Access
+                // grant), but ImageSherpa.app is a different process identity reading the
+                // same protected originals directly — see PhotoThumbnailLoader's doc comment.
+                Label("ImageSherpa needs Full Disk Access to load thumbnails directly from your Photos library.", systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button("Open Full Disk Access Settings…") {
+                    PermissionHelp.openFullDiskAccessSettings()
+                }
+                .font(.caption)
+            }
             if !paths.isEmpty {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 8) {
@@ -286,16 +298,22 @@ struct RecipeFormView: View {
         switch result {
         case .success(let paths):
             let limited = Array(paths.prefix(50))
-            let thumbnails = await Task.detached(priority: .userInitiated) {
+            let (thumbnails, needsFullDiskAccess) = await Task.detached(priority: .userInitiated) {
                 var loaded: [String: NSImage] = [:]
+                var permissionDenied = false
                 for path in limited {
-                    if let image = PhotoThumbnailLoader.load(path: path) {
+                    switch PhotoThumbnailLoader.load(path: path) {
+                    case .image(let image):
                         loaded[path] = image
+                    case .permissionDenied:
+                        permissionDenied = true
+                    case .failure:
+                        break
                     }
                 }
-                return loaded
+                return (loaded, permissionDenied)
             }.value
-            photoPreviewState = .loaded(paths: paths, thumbnails: thumbnails)
+            photoPreviewState = .loaded(paths: paths, thumbnails: thumbnails, thumbnailsNeedFullDiskAccess: needsFullDiskAccess)
         case .fullDiskAccessNeeded:
             photoPreviewState = .fullDiskAccessNeeded
         case .failure(let message):
