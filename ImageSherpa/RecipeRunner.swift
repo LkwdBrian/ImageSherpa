@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 
 /// Takes a Recipe + the user's filled-in field values, builds the final shell command,
 /// and executes it via /bin/zsh so PATH-based lookups (brew-installed binaries) resolve
@@ -72,6 +75,96 @@ final class RecipeRunner {
     /// explicit path instead of trusting shell PATH resolution.
     private static func withGuaranteedPath(_ command: String) -> String {
         "export PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; " + command
+    }
+
+    /// Result of resolving a folder-based recipe's affected-file preview (#16).
+    struct FolderPreview {
+        let fileNames: [String]
+        let displayPath: String
+        let folderExists: Bool
+        var count: Int { fileNames.count }
+    }
+
+    /// Resolves which files a folder-type field's glob will match, purely via FileManager
+    /// — no dry-run support from the underlying CLI is needed, since the glob itself is
+    /// already known from the recipe template (or an explicit previewGlob override).
+    /// Non-recursive: matches the actual shell glob (`{sourceFolder}/*`) and exiftool's own
+    /// default (every file directly in the folder, no subdirectories).
+    static func folderPreview(for recipe: Recipe, folderField: RecipeField, values: [String: String]) -> FolderPreview? {
+        let rawPath = values[folderField.name] ?? folderField.default ?? ""
+        guard !rawPath.isEmpty else { return nil }
+
+        let expandedPath = (rawPath as NSString).expandingTildeInPath
+        let glob = resolvedGlob(for: recipe, folderFieldName: folderField.name, values: values)
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return FolderPreview(fileNames: [], displayPath: rawPath, folderExists: false)
+        }
+
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: expandedPath)) ?? []
+        // FNM_PERIOD makes "*" behave like an actual shell glob (which doesn't match
+        // leading-dot files, e.g. .DS_Store, unless the pattern itself starts with a dot)
+        // — matches what {sourceFolder}/* actually expands to in the imagemagick recipes'
+        // for-loops. FNM_CASEFOLD mirrors the `nocaseglob` those same for-loops set (and
+        // exiftool's own case-insensitive -ext matching), so e.g. "IMG_1.JPG" previews the
+        // same as it will actually be processed. fnmatch itself has no concept of shell
+        // brace alternation ("*.{jpg,png}"), unlike the zsh for-loops that actually run the
+        // command, so that has to be expanded into separate patterns first.
+        let patterns = expandBraceAlternatives(glob)
+        let matches = contents.filter { name in
+            patterns.contains { fnmatch($0, name, FNM_PERIOD | FNM_CASEFOLD) == 0 }
+        }.sorted()
+        return FolderPreview(fileNames: matches, displayPath: rawPath, folderExists: true)
+    }
+
+    /// Prefers an explicit `previewGlob` override; otherwise derives the glob from
+    /// whatever immediately follows `{folderFieldName}` in the template up to the next
+    /// whitespace/quote (e.g. "/*" or "/*.{extension}"), defaulting to "*" when the field
+    /// appears bare (exiftool's recipes, which pass the folder straight through with no
+    /// shell glob at all). Any other {field} placeholders inside the resolved glob (e.g.
+    /// "{extension}") are substituted with the form's current values, same as buildCommand.
+    private static func resolvedGlob(for recipe: Recipe, folderFieldName: String, values: [String: String]) -> String {
+        var glob = recipe.previewGlob ?? derivedGlobSuffix(template: recipe.template, folderFieldName: folderFieldName) ?? "*"
+
+        for field in recipe.fields {
+            let token = "{\(field.name)}"
+            guard glob.contains(token) else { continue }
+            let value = values[field.name]
+            let resolvedValue = (value?.isEmpty == false) ? value! : (field.default ?? "")
+            glob = glob.replacingOccurrences(of: token, with: resolvedValue)
+        }
+        return glob
+    }
+
+    /// Expands a single shell brace group ("*.{jpg,png}" -> ["*.jpg", "*.png"]) since
+    /// fnmatch, unlike the zsh for-loops that actually run the command, has no concept of
+    /// brace alternation. Only one group is ever used in practice (an extension list), so
+    /// nested/multiple groups aren't handled.
+    private static func expandBraceAlternatives(_ pattern: String) -> [String] {
+        guard let openBrace = pattern.firstIndex(of: "{"),
+              let closeBrace = pattern[openBrace...].firstIndex(of: "}") else {
+            return [pattern]
+        }
+        let prefix = pattern[pattern.startIndex..<openBrace]
+        let suffix = pattern[pattern.index(after: closeBrace)...]
+        let alternatives = pattern[pattern.index(after: openBrace)..<closeBrace].split(separator: ",", omittingEmptySubsequences: false)
+        return alternatives.map { "\(prefix)\($0)\(suffix)" }
+    }
+
+    private static func derivedGlobSuffix(template: String, folderFieldName: String) -> String? {
+        let token = "{\(folderFieldName)}"
+        guard let tokenRange = template.range(of: token) else { return nil }
+        let rest = template[tokenRange.upperBound...]
+        guard rest.hasPrefix("/") else { return "*" }
+
+        let suffix = String(rest.dropFirst())
+        // Stop at whitespace/quotes, or shell metacharacters that can immediately follow a
+        // glob with no separating space (e.g. "{sourceFolder}/*; do ..." in the batch
+        // imagemagick recipes' for-loops).
+        let terminators: Set<Character> = [" ", "\"", "'", ";", "&", "|", "(", ")", "\n", "\t"]
+        let glob = String(suffix.prefix { !terminators.contains($0) })
+        return glob.isEmpty ? "*" : glob
     }
 
     enum OptionsLoadResult {

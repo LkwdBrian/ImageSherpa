@@ -12,7 +12,8 @@
       "id": "remove_gps",
       "label": "Remove GPS Location",
       "description": "Strip only GPS location data from every image in a folder, leaving other metadata (camera info, date, copyright) intact.",
-      "template": "exiftool -overwrite_original -gps:all= {sourceFolder}",
+      "template": "exiftool -overwrite_original -gps:all= -ext jpg -ext jpeg -ext png -ext gif -ext bmp -ext tif -ext tiff -ext heic -ext heif -ext webp {sourceFolder}",
+      "previewGlob": "*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" }
       ]
@@ -30,7 +31,8 @@
       "id": "batch_rename_by_date",
       "label": "Rename by Capture Date",
       "description": "Rename every image in a folder to its original capture date/time. Files with an identical timestamp get a numeric suffix instead of colliding.",
-      "template": "exiftool \"-FileName<DateTimeOriginal\" -d \"%Y-%m-%d_%H%M%S%%-c.%%e\" {sourceFolder}",
+      "template": "exiftool \"-FileName<DateTimeOriginal\" -d \"%Y-%m-%d_%H%M%S%%-c.%%e\" -ext jpg -ext jpeg -ext png -ext gif -ext bmp -ext tif -ext tiff -ext heic -ext heif -ext webp {sourceFolder}",
+      "previewGlob": "*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" }
       ]
@@ -48,7 +50,8 @@
       "id": "add_copyright",
       "label": "Add Copyright & Author",
       "description": "Tag every image in a folder with an author name and copyright notice.",
-      "template": "exiftool -overwrite_original -Artist={artist} -Copyright={copyright} {sourceFolder}",
+      "template": "exiftool -overwrite_original -Artist={artist} -Copyright={copyright} -ext jpg -ext jpeg -ext png -ext gif -ext bmp -ext tif -ext tiff -ext heic -ext heif -ext webp {sourceFolder}",
+      "previewGlob": "*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "artist", "label": "Author/Artist Name", "type": "quoted_text" },
@@ -70,7 +73,8 @@
       "id": "geotag",
       "label": "Add GPS Location",
       "description": "Tag every image in a folder with a GPS coordinate (decimal degrees; use a negative value for South/West).",
-      "template": "exiftool -overwrite_original -GPSLatitude={latitude} -GPSLongitude={longitude} -GPSLatitudeRef={latitude} -GPSLongitudeRef={longitude} {sourceFolder}",
+      "template": "exiftool -overwrite_original -GPSLatitude={latitude} -GPSLongitude={longitude} -GPSLatitudeRef={latitude} -GPSLongitudeRef={longitude} -ext jpg -ext jpeg -ext png -ext gif -ext bmp -ext tif -ext tiff -ext heic -ext heif -ext webp {sourceFolder}",
+      "previewGlob": "*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "latitude", "label": "Latitude (e.g. 40.7484 or -33.8688)", "type": "text" },
@@ -92,7 +96,8 @@
       "id": "export_metadata_csv",
       "label": "Export Metadata to CSV",
       "description": "Read all metadata from every image in a folder and export it as a single CSV file for review or spreadsheet use.",
-      "template": "exiftool -csv {sourceFolder} > {destination}/metadata.csv",
+      "template": "exiftool -csv -ext jpg -ext jpeg -ext png -ext gif -ext bmp -ext tif -ext tiff -ext heic -ext heif -ext webp {sourceFolder} > {destination}/metadata.csv",
+      "previewGlob": "*.{jpg,jpeg,png,gif,bmp,tif,tiff,heic,heif,webp}",
       "fields": [
         { "name": "sourceFolder", "label": "Source Folder", "type": "folder" },
         { "name": "destination", "label": "Destination Folder", "type": "folder" }
